@@ -74,10 +74,7 @@ public class AvroObjectInspector extends StructObjectInspector {
             if (logicalType.equalsIgnoreCase(LogicalType.TimeStampMillis.value())) {
                 return new TimeMillisObjectInspector();
             }
-        }
-
-        if (!StringUtils.isEmpty(fieldShema.getProp(PROP_KEY_LOGICAL_TYPE_WITH_SLASH))) {
-            if (LogicalType.ZonedTimestamp.value().equals(fieldShema.getProp(PROP_KEY_LOGICAL_TYPE_WITH_SLASH))) {
+            if (logicalType.equalsIgnoreCase(LogicalType.ZonedTimestamp.value())) {
                 return new TimeStampObjectInspector();
             }
         }

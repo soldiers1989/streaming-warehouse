@@ -29,7 +29,7 @@ public class CreateTableParser {
     private Options buildOptions() {
         Options options = new Options();
 
-        Option dbOption = Option.builder(OPTION_NAME_DB).hasArg().argName(OPTION_NAME_DB).required()
+        Option dbOption = Option.builder(OPTION_NAME_DB).hasArg().argName(OPTION_NAME_DB).required(false)
                 .desc("mysql database name").build();
         Option tblOption = Option.builder(OPTION_NAME_TBL).hasArg().argName(OPTION_NAME_TBL).required(false)
                 .valueSeparator(',').desc("mysql database name(split by ,)").build();
@@ -50,6 +50,10 @@ public class CreateTableParser {
     private CommandLine parse() throws ParseException{
         CommandLineParser parser = new DefaultParser();
         return parser.parse(buildOptions(), args);
+    }
+
+    public boolean dbSpecified() {
+        return commandLine.hasOption(OPTION_NAME_DB);
     }
 
     public String getDb() {

@@ -161,7 +161,7 @@ public class SchemaConvertor {
                 else {
                     baseSchema = org.apache.avro.SchemaBuilder.builder().stringType();
                     if (null != schema.name() && schema.name().equals(LogicalType.ZonedTimestamp.value())) {
-                        baseSchema.addProp(SchemaConstants.KEY_LOGICAL_TYPE, schema.name());
+                        baseSchema.addProp(SchemaConstants.PROP_KEY_LOGICAL_TYPE, schema.name());
                     }
                 }
                 break;

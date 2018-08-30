@@ -29,7 +29,7 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>${ver.slf4j}</version>
-            <scope>test</scope>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -50,6 +50,12 @@
             <groupId>com.tree.finance.bigdata</groupId>
             <artifactId>streaming-api</artifactId>
             <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>fastutil</groupId>
+            <artifactId>fastutil</artifactId>
+            <version>5.0.9</version>
         </dependency>
 
     </dependencies>

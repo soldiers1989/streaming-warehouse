@@ -31,11 +31,14 @@ public class WriterRef {
     //operation: u, c, d
     private Operation op;
 
+    private int version;
+
     //equals & hashcode method excluded fields
     private List<String> partitionVals;
     private Path path;
 
-    public WriterRef(String db, String table, List<String> partitionVals, int bucketId, int taskId, Operation op) {
+    public WriterRef(String db, String table, List<String> partitionVals, int bucketId, int taskId, Operation op, int
+            version) {
         this.db = db;
         this.table = table;
         this.partitionVals = partitionVals;
@@ -43,6 +46,7 @@ public class WriterRef {
         this.bucketId = bucketId;
         this.taskId = taskId;
         this.op = op;
+        this.version = version;
     }
 
     public String getDb() {
@@ -91,11 +95,12 @@ public class WriterRef {
                 Objects.equals(db, writerRef.db) &&
                 Objects.equals(table, writerRef.table) &&
                 Objects.equals(partitionName, writerRef.partitionName) &&
-                op == writerRef.op;
+                op == writerRef.op &&
+                version == writerRef.version;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(db, table, partitionName, bucketId, taskId, op);
+        return Objects.hash(db, table, partitionName, bucketId, taskId, op, version);
     }
 }

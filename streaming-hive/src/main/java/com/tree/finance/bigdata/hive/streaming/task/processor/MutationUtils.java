@@ -16,11 +16,11 @@ public class MutationUtils {
 
     private MutatorClient mutatorClient;
 
-    private MutatorCoordinator mutateCoordinator ;
+    private MutatorCoordinator mutateCoordinator;
 
-    private Transaction mutateTransaction ;
+    private Transaction mutateTransaction;
 
-    private MutatorFactory factory ;
+    private MutatorFactory factory;
 
     private long rowId = -1;
 
@@ -59,11 +59,11 @@ public class MutationUtils {
     }
 
     public long incAndReturnRowId() {
-        rowId ++;
+        rowId++;
         return rowId;
     }
 
-    public void setInitialized(){
+    public void setInitialized() {
         this.initialized = true;
     }
 
@@ -72,11 +72,15 @@ public class MutationUtils {
     }
 
     public void closeMutator() throws IOException {
-        this.mutateCoordinator.close();
+        if (null != this.mutateCoordinator) {
+            this.mutateCoordinator.close();
+        }
     }
 
-    public void commitTransaction() throws Exception{
-        mutateTransaction.commit();
+    public void commitTransaction() throws Exception {
+        if (null != mutateTransaction) {
+            mutateTransaction.commit();
+        }
     }
 
     public void closeMutatorQuietly() {

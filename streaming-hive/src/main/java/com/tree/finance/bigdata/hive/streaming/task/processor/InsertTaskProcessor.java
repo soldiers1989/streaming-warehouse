@@ -131,7 +131,6 @@ public class InsertTaskProcessor implements Runnable {
         MutationUtils mutationUtils = new MutationUtils();
 
         try {
-            hbaseUtil = HbaseUtils.getTableInstance(config.getRowIdToRecIdHbaseTbl());
             int i = 0;
 
             for (ConsumedTask task : tasks) {
@@ -144,7 +143,9 @@ public class InsertTaskProcessor implements Runnable {
             }
 
             //should not ignore HBase client closing error, to prevent from rowKey not write properly
-            hbaseUtil.close();
+            if (null != hbaseUtil) {
+                hbaseUtil.close();
+            }
             mutationUtils.closeMutator();
             mutationUtils.getMutateTransaction().commit();
             mutationUtils.closeClientQueitely();
@@ -209,14 +210,13 @@ public class InsertTaskProcessor implements Runnable {
         MutationUtils mutationUtils = new MutationUtils();
         HbaseUtils hbaseUtil = null;
         try {
-            hbaseUtil = HbaseUtils.getTableInstance(config.getRowIdToRecIdHbaseTbl());
-
             long start = System.currentTimeMillis();
             LOG.info("single task start: {}", task.getTaskInfo().getFilePath());
             handleTask(hbaseUtil, mutationUtils, task);
             LOG.info("single task success: {}, cost: {}ms", task.getTaskInfo().getFilePath(), System.currentTimeMillis() - start);
-
-            hbaseUtil.close();
+            if (null != hbaseUtil) {
+                hbaseUtil.close();
+            }
             mutationUtils.closeMutator();
             mutationUtils.commitTransaction();
             try {
@@ -271,6 +271,10 @@ public class InsertTaskProcessor implements Runnable {
                 LOG.warn("path not exist: {}", task.getTaskInfo().getFilePath());
             }
             return;
+        }
+
+        if (null == hbaseUtil) {
+            hbaseUtil = HbaseUtils.getTableInstance(config.getRowIdToRecIdHbaseTbl());
         }
 
         try (AvroFileReader reader = new AvroFileReader(new Path(task.getTaskInfo().getFilePath()))) {

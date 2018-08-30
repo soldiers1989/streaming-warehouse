@@ -51,7 +51,12 @@ public class DfsSinkConnector extends SinkConnector {
     }
 
     public ConfigDef config() {
-        return SinkConfig.CONFIG_DEF;
+        try {
+            return SinkConfig.CONFIG_DEF;
+        }catch (Exception e){
+            LOG.error("failed to load config_def", e);
+            throw new RuntimeException(e);
+        }
     }
 
     private Map<String, String> copyConfig(Map<String, String> map){

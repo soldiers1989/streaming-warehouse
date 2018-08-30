@@ -34,7 +34,7 @@ public class RecordUtils {
     public static Map<String, String> tableToCreateTimeCol = new HashMap<>();
 
     public static String getUpdateCol(String table, Schema fileSchema) {
-        if (table.contains(table)) {
+        if (tableToUpdateCol.containsKey(table)) {
             return tableToUpdateCol.get(table);
         }else {
             List<Schema.Field> fields = fileSchema.getField(FIELD_AFTER).schema().getFields();
@@ -86,19 +86,22 @@ public class RecordUtils {
             if (logicalType.equalsIgnoreCase(LogicalType.TimeStampMillis.value())) {
                 return (Long) value;
             }
-        }
-
-        if (!StringUtils.isEmpty(fieldSchema.getProp(PROP_KEY_LOGICAL_TYPE_WITH_SLASH))) {
-            if (LogicalType.ZonedTimestamp.value().equals(fieldSchema.getProp(PROP_KEY_LOGICAL_TYPE_WITH_SLASH))) {
+            if (logicalType.equalsIgnoreCase(LogicalType.ZonedTimestamp.value())) {
                 return new TimeStampObjectInspector().get(value).getTime();
             }
         }
+
         LOG.error("update column not in support type, column: {}, schema: {}", fieldName, fieldSchema);
         return null;
 
     }
 
     public static String getCreateTimeCol(String table, Collection<String> fieldNames) {
+
+        if (table.equalsIgnoreCase("loandb.lp_activity")){
+            System.out.println();
+        }
+
         if (tableToCreateTimeCol.containsKey(table)) {
             return tableToCreateTimeCol.get(table);
         }else {

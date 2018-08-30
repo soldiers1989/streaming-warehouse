@@ -1,6 +1,5 @@
 package com.tree.finance.bigdata.kafka.connect.sink.fs.convertor;
 
-import static com.tree.finance.bigdata.schema.SchemaConstants.*;
 import com.tree.finance.bigdata.task.Operation;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -11,11 +10,14 @@ import org.apache.kafka.connect.data.Schema.Type;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.data.Timestamp;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.util.Calendar;
-import java.util.Date;
+import java.util.*;
+
+import static com.tree.finance.bigdata.schema.SchemaConstants.*;
 
 
 /**
@@ -25,7 +27,7 @@ import java.util.Date;
  */
 public class ValueConvertor {
 
-    public static GenericData.Record connectToGeneric(Schema schema, SinkRecord sinkRecord) {
+    public static GenericData.Record connectToGeneric(Schema avroFileSchema, SinkRecord sinkRecord) {
         Struct value = (Struct) sinkRecord.value();
         Operation op = Operation.forCode(value.getString(FIELD_OP));
         Struct afterStruct;
@@ -35,6 +37,22 @@ public class ValueConvertor {
         } else {
             afterStruct = (Struct) value.get(FIELD_AFTER);
         }
+        GenericRecordBuilder afterBuilder = getAfterRecordBuilder(avroFileSchema, afterStruct);
+        //id
+        GenericRecordBuilder keyBuilder = new GenericRecordBuilder(avroFileSchema.getField(FIELD_KEY).schema());
+        Struct key = (Struct) sinkRecord.key();
+        key.schema().fields().forEach(field ->
+                //change to lowercase
+                keyBuilder.set(field.name().toLowerCase(), key.get(field))
+        );
+        GenericRecordBuilder builder = new GenericRecordBuilder(avroFileSchema);
+        builder.set(FIELD_AFTER, afterBuilder.build());
+        builder.set(FIELD_OP, op.code());
+        builder.set(FIELD_KEY, keyBuilder.build());
+        return builder.build();
+    }
+
+    private static GenericRecordBuilder getAfterRecordBuilder(Schema schema, Struct afterStruct) {
         GenericRecordBuilder afterBuilder = new GenericRecordBuilder(schema.getField(FIELD_AFTER).schema());
 
         for (Field field : afterStruct.schema().fields()) {
@@ -90,20 +108,6 @@ public class ValueConvertor {
                 afterBuilder.set(field.name().toLowerCase(), afterStruct.get(field.name()));
             }
         }
-
-
-        //id
-        GenericRecordBuilder keyBuilder = new GenericRecordBuilder(schema.getField(FIELD_KEY).schema());
-        Struct key = (Struct) sinkRecord.key();
-        key.schema().fields().forEach(field ->
-                //change to lowercase
-                keyBuilder.set(field.name().toLowerCase(), key.get(field))
-        );
-
-        GenericRecordBuilder builder = new GenericRecordBuilder(schema);
-        builder.set(FIELD_OP, op.code());
-        builder.set(FIELD_AFTER, afterBuilder.build());
-        builder.set(FIELD_KEY, keyBuilder.build());
-        return builder.build();
+        return afterBuilder;
     }
 }

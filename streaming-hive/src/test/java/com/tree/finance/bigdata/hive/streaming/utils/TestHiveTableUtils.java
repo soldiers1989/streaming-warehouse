@@ -6,6 +6,7 @@ import com.tree.finance.bigdata.hive.streaming.utils.hive.HiveDDLUtils;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,23 +19,9 @@ public class TestHiveTableUtils {
 
     @Test
     public void createHiveTblDDLFromMysql() throws Exception {
-        /*HiveDDLUtils hiveTableUtils = new HiveDDLUtils("jdbc:mysql://localhost:3307",
-                "root", "zsjsjb",
-                "createdate,createtime,creatdate,creattime,createddatetime,createdtime");
-
-        String[] tbls = {"t_td_model_raw_data"};
-        List<String> list = hiveTableUtils.createDDLFromMysql("test", tbls);
-        System.out.println(list.get(0));*/
-
-
-        HiveDDLUtils hiveTableUtils = new HiveDDLUtils("jdbc:mysql://paymentservice.mysql.rds.aliyuncs.com:3306",
-                "debezium", "Debezium_",
-                "createdate,createtime,creatdate,creattime,createddatetime,createdtime");
-
-        String[] tbls = {"t_td_risk_raw_result_new"};
-        List<String> list = hiveTableUtils.createDDLFromMysql("payment",  null, false);
-        System.out.println(list.get(0));
-
+        Properties properties = new Properties();
+        properties.load(TestHiveTableUtils.class.getResourceAsStream("/mysql.database.properties"));
+        new HiveDDLUtils(properties).createAllTables();
     }
 
     @Test

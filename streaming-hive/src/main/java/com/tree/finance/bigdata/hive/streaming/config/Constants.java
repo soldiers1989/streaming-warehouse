@@ -9,4 +9,7 @@ public interface Constants {
     String AVRO_KEY_RECORD_ID = "key";
     String HIVE_CREATE_TBL_TEMPLATE_FILE = "/hive_create_table.template";
     String FILE_PROCESSED_SUFIX =  ".processed";
+    String MYSQL_DB_CONF_FILE = "/mysql.database.properties";
+    String MYSQL_DB_USER = "source.db.user";
+    String MYSQL_DB_PASSWORD = "source.db.password";
 }

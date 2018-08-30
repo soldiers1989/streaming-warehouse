@@ -4,16 +4,11 @@ import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.avro.AvroWriter;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 import static com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig.Default.*;
 import static com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig.Validator.NON_NEGATIVE_INT_VALIDATOR;
-import static com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig.Validator.NO_EMPTY;
 
 /**
  * @author Zhengsj
@@ -22,11 +17,7 @@ import static com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig.V
  */
 public class SinkConfig extends AbstractConfig {
 
-    private List<String> defaultParClos;
-
     private Map<String, String> dynamicConf;
-
-    private static Logger LOG = LoggerFactory.getLogger(SinkConfig.class);
 
     public SinkConfig(Map<String, String> map) {
         super(CONFIG_DEF, map);
@@ -35,6 +26,11 @@ public class SinkConfig extends AbstractConfig {
 
 
     public static final ConfigDef CONFIG_DEF = new ConfigDef()
+
+            //database config
+            .define(KEY.HIVE_DATABASE_NAME, ConfigDef.Type.STRING,  null, new ConfigDef.NonEmptyString(),
+                    ConfigDef.Importance.MEDIUM, "destination database name in hive")
+
             //Writer options
             .define(KEY.WRITER_MAX_INSERT_MSG, ConfigDef.Type.LONG, 3000000, NON_NEGATIVE_INT_VALIDATOR,
                     ConfigDef.Importance.MEDIUM, "")
@@ -98,6 +94,7 @@ public class SinkConfig extends AbstractConfig {
         String HADOOP_CONF_PATH = "hadoop.conf.dir";
         String SINK_WRITER_CLASS = "sink.writer.class";
 
+        String HIVE_DATABASE_NAME = "hive.destination.database.name";
     }
 
     interface Validator {
@@ -111,7 +108,7 @@ public class SinkConfig extends AbstractConfig {
     public interface Default {
         String DFS_FILE_SEPARATOR = "/";
         String WRITER_BASE_PATH_DEFAULT = "/data/kafka-connect/sink/";
-        String TABLE_PARTITION_CONFIG_GLOBAL_VALUE = "create,creat|date,time";
+        String TABLE_PARTITION_CONFIG_GLOBAL_VALUE = "create,creat|date,time,createat,creatat,createdat";
         String RABBIT_MQ_TASK_QUEUE_DEFAULT = "streaming_warehouse_file_queue";
         String HADOOP_CONF_PATH_DEFAULT = "/etc/hadoop/conf";
         String SINK_WRITER_CLASS_DEFAULT = "com.tree.finance.bigdata.kafka.connect.sink.fs.writer.AvroWriter";
@@ -149,6 +146,10 @@ public class SinkConfig extends AbstractConfig {
 
     public String getHadoopConfDir() {
         return getString(KEY.HADOOP_CONF_PATH);
+    }
+
+    public String getHiveDestinationDbName() {
+        return getString(KEY.HIVE_DATABASE_NAME);
     }
 
 }

@@ -18,7 +18,6 @@ public interface SchemaConstants {
     String FIELD_KEY = "key";
 
     String PROP_KEY_LOGICAL_TYPE = "logicalType";
-    String PROP_KEY_LOGICAL_TYPE_WITH_SLASH = "logical_type";
     String PROP_KEY_SCALE = "scale";
     String PROP_KEY_PRECISION = "precision";
 

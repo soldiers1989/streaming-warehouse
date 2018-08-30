@@ -43,8 +43,8 @@ public class AvroWriter extends Writer<GenericData.Record> {
             wroteMsg ++;
             dataFileWriter.append(record);
         } catch (Exception e) {
-            LOG.error("write failed path: {}, schema: {}, data: {}",
-                    path, ((AvroWriterRef) ref).getSchema(), record.toString(), e);
+            LOG.error("write failed file path: {} \nwrite schema: {}\ndata schema: {}\ndata: {}",
+                    path, ((AvroWriterRef) ref).getSchema(), record.getSchema(), record.toString(), e);
             throw new RuntimeException(e);
         }
 

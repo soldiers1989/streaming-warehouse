@@ -33,7 +33,6 @@ public class HiveAdminUtils {
                     System.out.println("failed to execute: " + ddl);
                     e.printStackTrace();
                 }
-
             }
         }
     }

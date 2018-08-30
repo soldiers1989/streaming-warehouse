@@ -15,8 +15,8 @@ public class AvroWriterRef extends WriterRef {
 
     private Schema schema;
 
-    public AvroWriterRef (String db, String table, List<String> partitionVals, int bucketId, int taskId, Operation op, Schema schema){
-        super(db, table, partitionVals, bucketId, taskId, op);
+    public AvroWriterRef (String db, String table, List<String> partitionVals, int bucketId, int taskId, Operation op, Schema schema, int version){
+        super(db, table, partitionVals, bucketId, taskId, op, version);
         this.schema = schema;
     }
 

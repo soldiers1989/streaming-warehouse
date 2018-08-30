@@ -95,7 +95,7 @@ public class TestSinkWriteToAvro {
 
             DataFileWriter<Object> dataFileWriter = new DataFileWriter<>(
                     new GenericDatumWriter<>());
-            dataFileWriter.create(avroSchema, new File("/tmp/tmp.avro"));
+            dataFileWriter.create(avroSchema, new File("/tmp/tmp2.avro"));
             dataFileWriter.append(record);
             dataFileWriter.close();
             break;

@@ -73,14 +73,6 @@ public abstract class AppConfig {
     @Default("3")
     public abstract Integer getTaskRetriesOnError();
 
-    //mysql config
-    @Config("source.db.url")
-    public abstract String getSourceDblUrl();
-    @Config("source.db.user")
-    public abstract String getSourceDbUser();
-    @Config("source.db.password")
-    public abstract String getSourceDbPwd();
-
     //hive config
     @Config("hive.table.cluster.columns")
     @Default("createdate,createtime,creatdate,creattime,createddatetime,createdtime,create_date")
@@ -106,7 +98,7 @@ public abstract class AppConfig {
 
     //time identifier
     @Config("record.column.time.identifier")
-    @Default("time,date")
+    @Default("time,date,createat,createdat,updateat,updatedat")
     public abstract String timeColIdentifier();
     //update identifier
     @Config("record.column.update.identifier")

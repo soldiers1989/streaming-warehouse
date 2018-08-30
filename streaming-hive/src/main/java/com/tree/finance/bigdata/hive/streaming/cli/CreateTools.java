@@ -6,6 +6,9 @@ import com.tree.finance.bigdata.hive.streaming.utils.hive.HiveAdminUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.hive.HiveDDLUtils;
 
 import java.util.List;
+import java.util.Properties;
+
+import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_CONF_FILE;
 
 /**
  * @author Zhengsj
@@ -16,8 +19,6 @@ public class CreateTools {
 
     public static void main(String[] args) throws Exception{
 
-        AppConfig config = ConfigHolder.getConfig();
-
         CreateTableParser parser = null;
         try {
             parser = new CreateTableParser(args);
@@ -26,19 +27,21 @@ public class CreateTools {
             e.printStackTrace();
             parser.printHelp();
         }
-
-
-        HiveDDLUtils hiveDDLUtils = new HiveDDLUtils(config.getSourceDblUrl(), config.getSourceDbUser(),
-                config.getSourceDbPwd(), config.getDefaultClusterCols());
-
         if (parser.isHelp()){
             parser.printHelp();
             return;
         }
 
-        List<String> ddls = hiveDDLUtils.createDDLFromMysql(parser.getDb(), parser.getTable(), parser.includeDigits());
+        Properties properties = new Properties();
+        properties.load(CreateTools.class.getResourceAsStream(MYSQL_DB_CONF_FILE));
+        HiveDDLUtils hiveDDLUtils = new HiveDDLUtils(properties);
 
-        new HiveAdminUtils(config.getHiveServer2Url()).createTable(ddls);
+
+        if (!parser.dbSpecified()) {
+            hiveDDLUtils.createAllTables();
+        } else {
+            hiveDDLUtils.createDDLFromMysql(parser.getDb(), parser.getTable(), parser.includeDigits());
+        }
     }
 
 }

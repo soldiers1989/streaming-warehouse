@@ -26,7 +26,7 @@ public class ConfigHolder {
             Properties properties = new Properties();
             String confFile = System.getProperty(CONF_KEY);
             if (StringUtils.isEmpty(confFile)) {
-                properties.load(ConfigHolder.class.getResourceAsStream("program.properties"));
+                properties.load(ConfigHolder.class.getResourceAsStream("/program.properties"));
             } else {
                 properties.load(new FileInputStream(new File(confFile)));
             }
