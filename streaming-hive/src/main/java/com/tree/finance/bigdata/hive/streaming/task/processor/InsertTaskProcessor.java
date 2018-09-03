@@ -10,7 +10,7 @@ import com.tree.finance.bigdata.hive.streaming.task.listener.HiveLockFailureList
 import com.tree.finance.bigdata.hive.streaming.task.listener.MqTaskStatusListener;
 import com.tree.finance.bigdata.hive.streaming.task.listener.TaskStatusListener;
 import com.tree.finance.bigdata.hive.streaming.task.type.ConsumedTask;
-import com.tree.finance.bigdata.hive.streaming.utils.common.StringUtils;
+import com.tree.finance.bigdata.utils.common.StringUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.hbase.HbaseUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
 import com.tree.finance.bigdata.hive.streaming.utils.record.RecordUtils;

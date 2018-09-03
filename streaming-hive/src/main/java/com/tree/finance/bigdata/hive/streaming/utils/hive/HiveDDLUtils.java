@@ -2,7 +2,7 @@ package com.tree.finance.bigdata.hive.streaming.utils.hive;
 
 import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.config.Constants;
-import com.tree.finance.bigdata.hive.streaming.utils.common.StringUtils;
+import com.tree.finance.bigdata.utils.common.StringUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.record.RecordUtils;
 import org.apache.hive.jdbc.HiveDriver;
 import org.slf4j.Logger;

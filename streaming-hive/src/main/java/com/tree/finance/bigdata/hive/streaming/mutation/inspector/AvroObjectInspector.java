@@ -2,7 +2,7 @@ package com.tree.finance.bigdata.hive.streaming.mutation.inspector;
 
 import com.tree.finance.bigdata.hive.streaming.config.Constants;
 import com.tree.finance.bigdata.hive.streaming.mutation.AvroStructField;
-import com.tree.finance.bigdata.hive.streaming.utils.common.StringUtils;
+import com.tree.finance.bigdata.utils.common.StringUtils;
 import com.tree.finance.bigdata.schema.LogicalType;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;

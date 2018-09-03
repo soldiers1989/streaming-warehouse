@@ -1,6 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.config;
 
-import com.tree.finance.bigdata.hive.streaming.utils.common.StringUtils;
+import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

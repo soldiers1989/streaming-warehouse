@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.utils.common;
+package com.tree.finance.bigdata.utils.common;
 
 /**
  * @author Zhengsj
