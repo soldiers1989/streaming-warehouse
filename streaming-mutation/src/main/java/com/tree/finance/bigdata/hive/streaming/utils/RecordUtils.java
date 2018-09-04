@@ -1,20 +1,22 @@
-package com.tree.finance.bigdata.hive.streaming.utils.record;
+package com.tree.finance.bigdata.hive.streaming.utils;
 
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
+import com.tree.finance.bigdata.hive.streaming.constants.Constants;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.LogicalDateObjectInspector;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.TimeStampObjectInspector;
-import com.tree.finance.bigdata.utils.common.StringUtils;
 import com.tree.finance.bigdata.schema.LogicalType;
+import com.tree.finance.bigdata.utils.common.StringUtils;
+import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import static com.tree.finance.bigdata.schema.SchemaConstants.*;
+import java.util.*;
+
+import static com.tree.finance.bigdata.hive.streaming.constants.Constants.*;
+import static com.tree.finance.bigdata.schema.SchemaConstants.FIELD_AFTER;
+import static com.tree.finance.bigdata.schema.SchemaConstants.PROP_KEY_LOGICAL_TYPE;
 
 /**
  * @author Zhengsj
@@ -23,12 +25,22 @@ import static com.tree.finance.bigdata.schema.SchemaConstants.*;
  */
 public class RecordUtils {
 
-    public static String[] UPDATE_IDENTIFIER = ConfigHolder.getConfig().updateColIdentifier().split(",");
-    public static String[] CREATE_IDENTIFIER = ConfigHolder.getConfig().createColIdentifier().split(",");
-    public static String[] TIME_IDENTIFIER = ConfigHolder.getConfig().timeColIdentifier().split(",");
-    
+    public static String[] UPDATE_IDENTIFIER;
+    public static String[] CREATE_IDENTIFIER;
+    public static String[] TIME_IDENTIFIER;
     private static Logger LOG = LoggerFactory.getLogger(RecordUtils.class);
 
+    static {
+        try {
+            UPDATE_IDENTIFIER = ConfigFactory.getConfig().getProperty(COLUMN_UPDATE_IDENTIFIER).split(",");
+            TIME_IDENTIFIER = ConfigFactory.getConfig().getProperty(COLUMN_TIME_IDENTIFIER).split(",");
+            CREATE_IDENTIFIER = ConfigFactory.getConfig().getProperty(COLUMN_CREATE_IDENTIFIER).split(",");
+        }catch (Exception e) {
+            LOG.error("", e);
+            throw new RuntimeException(e);
+        }
+    }
+    
     public static Map<String, String> tableToUpdateCol = new HashMap<>();
 
     public static Map<String, String> tableToCreateTimeCol = new HashMap<>();

@@ -1,9 +1,10 @@
 package com.tree.finance.bigdata.hive.streaming.mutation.inspector;
 
-import com.tree.finance.bigdata.hive.streaming.config.Constants;
 import com.tree.finance.bigdata.hive.streaming.mutation.AvroStructField;
-import com.tree.finance.bigdata.utils.common.StringUtils;
+import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
 import com.tree.finance.bigdata.schema.LogicalType;
+import com.tree.finance.bigdata.schema.SchemaConstants;
+import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -29,10 +30,12 @@ public class AvroObjectInspector extends StructObjectInspector {
     private static Logger LOG = LoggerFactory.getLogger(AvroObjectInspector.class);
     private String db;
     private String table;
+    private HbaseUtils hbaseUtils;
 
-    public AvroObjectInspector(String db, String table, Schema schema) {
+    public AvroObjectInspector(String db, String table, Schema schema, HbaseUtils hbaseUtils) {
         this.db = db;
         this.table = table;
+        this.hbaseUtils = hbaseUtils;
         init(schema);
     }
 
@@ -40,7 +43,7 @@ public class AvroObjectInspector extends StructObjectInspector {
 
         int pos = 0;
         fields.add(new AvroStructField("recordId", pos++, new RecIdObjectInspector(
-                db, table, schema.getField(Constants.AVRO_KEY_RECORD_ID).schema())));
+                db, table, schema.getField(SchemaConstants.FIELD_KEY).schema(), hbaseUtils)));
 
         //数据字段
         ArrayList<StructField> colFields = new ArrayList();
@@ -95,7 +98,7 @@ public class AvroObjectInspector extends StructObjectInspector {
             case DOUBLE:
                 return PrimitiveObjectInspectorFactory.javaDoubleObjectInspector;
             case RECORD:
-                return new AvroObjectInspector(db, table, fieldShema);
+                return new AvroObjectInspector(db, table, fieldShema, hbaseUtils);
             case UNION: //仅存在两个元素，并且其中一个为NULL的场景
                 for (Schema schema : fieldShema.getTypes()) {
                     if (!schema.getType().equals(Schema.Type.NULL)) {
@@ -124,7 +127,7 @@ public class AvroObjectInspector extends StructObjectInspector {
     public Object getStructFieldData(Object data, StructField fieldRef) {
         GenericData.Record record = (GenericData.Record) data;
         if (fieldRef.getFieldID() == 0) {
-            return ((GenericData.Record) data).get(Constants.AVRO_KEY_RECORD_ID);
+            return ((GenericData.Record) data).get(SchemaConstants.FIELD_KEY);
         }
         return ((GenericData.Record) record.get(FIELD_AFTER)).get(fieldRef.getFieldName());
     }

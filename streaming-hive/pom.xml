@@ -20,6 +20,12 @@
 
         <dependency>
             <groupId>com.tree.finance.bigdata</groupId>
+            <artifactId>streaming-mutation</artifactId>
+            <version>1.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.tree.finance.bigdata</groupId>
             <artifactId>streaming-api</artifactId>
             <version>1.0</version>
         </dependency>

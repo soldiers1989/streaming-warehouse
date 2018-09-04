@@ -1,8 +1,7 @@
-package com.tree.finance.bigdata.hive.streaming.utils.hbase;
+package com.tree.finance.bigdata.hive.streaming.utils;
 
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
+import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
@@ -15,6 +14,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_INSERT_BATCH_SIZE;
+import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_TABLE_NAME;
+
 /**
  * @author Zhengsj
  * Description:
@@ -23,35 +25,28 @@ import java.util.List;
 public class HbaseUtils {
 
     static Logger LOG = LoggerFactory.getLogger(HbaseUtils.class);
-    static Configuration config = HBaseConfiguration.create();
     static Connection connection;
-    static final String zkStr = ConfigHolder.getConfig().getHbaseZkQuorum();
-    static final String zkRoot = ConfigHolder.getConfig().getHbaseZkRoot();
-    static Integer batchSize = ConfigHolder.getConfig().getHbaseBatchSize();
+    private Integer batchSize;
 
     private List<Put> buffer;
     private Table htable;
 
-    static {
-        try {
-            config.set("hbase.zookeeper.quorum", zkStr);
-            config.set("zookeeper.znode.parent", zkRoot);
-            connection = ConnectionFactory.createConnection(config);
-        } catch (Exception e) {
-            LOG.error("", e);
-        }
-    }
-
-    private HbaseUtils(String tableName) throws IOException {
+    private HbaseUtils(String tableName, Configuration config) throws IOException {
         this.buffer = new ArrayList<>();
+        this.batchSize = config.getInt(KEY_HBASE_INSERT_BATCH_SIZE, 500);
+        connection = ConnectionFactory.createConnection(config);
         this.htable = connection.getTable(TableName.valueOf(tableName));
     }
 
-    public static HbaseUtils getTableInstance(String table) throws IOException {
-        return new HbaseUtils(table);
+    public static HbaseUtils getTableInstance(Configuration conf) throws IOException {
+        String tableName = conf.get(KEY_HBASE_TABLE_NAME);
+        if (StringUtils.isEmpty(tableName)) {
+            throw new RuntimeException(KEY_HBASE_TABLE_NAME + " is not set");
+        }
+        return new HbaseUtils(tableName, conf);
     }
 
-    public String getValue(String rowKey, byte[] family, byte[] col) {
+    public String getString(String rowKey, byte[] family, byte[] col) {
         try {
             Get getVal = new Get(Bytes.toBytes(rowKey));
             Result result = htable.get(getVal);
@@ -60,6 +55,22 @@ public class HbaseUtils {
                 return null;
             } else {
                 return new String(value);
+            }
+        } catch (Exception e) {
+            LOG.error("failed to get rowId from HBase rowKey: {}\n{}" + rowKey, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Long getLong(String rowKey, byte[] family, byte[] col) {
+        try {
+            Get getVal = new Get(Bytes.toBytes(rowKey));
+            Result result = htable.get(getVal);
+            byte[] value = result.getValue(family, col);
+            if (value == null) {
+                return null;
+            } else {
+                return Bytes.toLong(value);
             }
         } catch (Exception e) {
             LOG.error("failed to get rowId from HBase rowKey: {}\n{}" + rowKey, e);

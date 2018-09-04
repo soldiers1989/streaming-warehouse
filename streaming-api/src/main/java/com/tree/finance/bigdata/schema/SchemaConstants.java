@@ -21,5 +21,4 @@ public interface SchemaConstants {
     String PROP_KEY_SCALE = "scale";
     String PROP_KEY_PRECISION = "precision";
 
-
 }

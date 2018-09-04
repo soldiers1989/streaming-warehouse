@@ -14,7 +14,7 @@ public class TestAvroObjectInspector {
     public void testAvroObjectInspector(){
         Schema schema = new Schema.Parser().parse(schemaStr);
         System.out.println(schema);
-        new AvroObjectInspector(null, null, schema);
+        new AvroObjectInspector(null, null, schema, null);
     }
     String schemaStr = "{\n" +
             "  \"type\": \"record\",\n" +

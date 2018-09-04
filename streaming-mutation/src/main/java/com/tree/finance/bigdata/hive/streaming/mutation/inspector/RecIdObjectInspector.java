@@ -1,9 +1,8 @@
 package com.tree.finance.bigdata.hive.streaming.mutation.inspector;
 
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.mutation.AvroStructField;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
-import com.tree.finance.bigdata.hive.streaming.utils.hbase.HbaseUtils;
+import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -13,7 +12,6 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectIn
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,7 +36,13 @@ public class RecIdObjectInspector extends StructObjectInspector {
 
     private static Logger LOG = LoggerFactory.getLogger(RecIdObjectInspector.class);
 
-    RecIdObjectInspector(String db, String table, Schema idSchema) {
+    private byte[] defaultFamily = Bytes.toBytes("f");
+    private byte[] defaultRowIdQualifier = Bytes.toBytes("recordId");
+
+    private HbaseUtils hbaseUtils;
+
+    RecIdObjectInspector(String db, String table, Schema idSchema, HbaseUtils hbaseUtils) {
+        this.hbaseUtils = hbaseUtils;
         this.db = db;
         this.table = table;
         this.idSchema = idSchema;
@@ -72,7 +76,6 @@ public class RecIdObjectInspector extends StructObjectInspector {
 
     @Override
     public Object getStructFieldData(Object data, StructField fieldRef) {
-        HbaseUtils hbaseUtils = null;
         try {
             if (fieldRef.getFieldName().equals(FIELD_NAME_BUCKET_FIELD)) {
                 return 0;
@@ -80,11 +83,8 @@ public class RecIdObjectInspector extends StructObjectInspector {
             if (fieldRef.getFieldName().equals(FIELD_NAME_ROWID) || fieldRef.getFieldName().equals(FIELD_NAME_ORIGINAL_TXN_FIELD)) {
                 String businessId = GenericRowIdUtils.assembleBuizId((GenericData.Record) data, idSchema);
                 businessId = db + "." + table + '_' + businessId;
-                hbaseUtils = HbaseUtils.getTableInstance(ConfigHolder.getConfig().getRowIdToRecIdHbaseTbl());
-                String rowId = hbaseUtils.getValue(businessId, Bytes.toBytes(ConfigHolder.getConfig().getDefaultColFamily()),
-                        Bytes.toBytes(ConfigHolder.getConfig().getRecordIdQualifier()));
+                String rowId = hbaseUtils.getString(businessId, defaultFamily, defaultRowIdQualifier);
                 String[] rowIds = rowId.split("_");
-
                 if (fieldRef.getFieldName().equals(FIELD_NAME_ROWID)){
                     return Long.valueOf(rowIds[2]);
                 } else if (fieldRef.getFieldName().equals(FIELD_NAME_ORIGINAL_TXN_FIELD)) {
@@ -95,15 +95,6 @@ public class RecIdObjectInspector extends StructObjectInspector {
         } catch (Exception e) {
             LOG.error("", e);
             throw new RuntimeException(e);
-        }finally {
-            if (null != hbaseUtils){
-                try {
-                    hbaseUtils.close();
-                }catch (IOException e){
-                    LOG.error("", e);
-                }
-
-            }
         }
     }
 

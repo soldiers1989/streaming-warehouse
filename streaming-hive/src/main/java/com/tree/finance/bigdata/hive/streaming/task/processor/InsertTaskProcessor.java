@@ -1,31 +1,21 @@
 package com.tree.finance.bigdata.hive.streaming.task.processor;
 
+import com.mysql.cj.x.protobuf.MysqlxCrud;
 import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
-import com.tree.finance.bigdata.hive.streaming.config.Constants;
-import com.tree.finance.bigdata.hive.streaming.mutation.AvroMutationFactory;
-import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
-import com.tree.finance.bigdata.hive.streaming.mutation.inspector.AvroObjectInspector;
+import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
-import com.tree.finance.bigdata.hive.streaming.task.listener.HiveLockFailureListener;
 import com.tree.finance.bigdata.hive.streaming.task.listener.MqTaskStatusListener;
 import com.tree.finance.bigdata.hive.streaming.task.listener.TaskStatusListener;
 import com.tree.finance.bigdata.hive.streaming.task.type.ConsumedTask;
-import com.tree.finance.bigdata.utils.common.StringUtils;
-import com.tree.finance.bigdata.hive.streaming.utils.hbase.HbaseUtils;
+import com.tree.finance.bigdata.hive.streaming.utils.InsertMutation;
+import com.tree.finance.bigdata.hive.streaming.utils.Mutation;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
-import com.tree.finance.bigdata.hive.streaming.utils.record.RecordUtils;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hive.hcatalog.streaming.mutate.client.AcidTable;
-import org.apache.hive.hcatalog.streaming.mutate.client.MutatorClientBuilder;
 import org.apache.hive.hcatalog.streaming.mutate.client.TransactionException;
-import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorCoordinator;
-import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorCoordinatorBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static com.tree.finance.bigdata.hive.streaming.config.Constants.AVRO_KEY_RECORD_ID;
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.FILE_PROCESSED_SUFIX;
 
 /**
@@ -51,13 +40,7 @@ public class InsertTaskProcessor implements Runnable {
 
     private static Logger LOG = LoggerFactory.getLogger(InsertTaskProcessor.class);
 
-    private static final String BUCKET_ID = "0";
-
     private LinkedBlockingQueue<ConsumedTask> taskQueue;
-
-    private byte[] columnFamily;
-    private byte[] recordIdColIdentifier;
-    private byte[] updateTimeColIdentifier;
 
     private volatile boolean stop = false;
 
@@ -73,10 +56,6 @@ public class InsertTaskProcessor implements Runnable {
         this.id = id;
         this.taskQueue = new LinkedBlockingQueue<>(config.getFileQueueSize());
         this.taskStatusListener = new MqTaskStatusListener(config);
-
-        this.columnFamily = Bytes.toBytes(config.getDefaultColFamily());
-        this.recordIdColIdentifier = Bytes.toBytes(config.getRecordIdQualifier());
-        this.updateTimeColIdentifier = Bytes.toBytes(config.getUpdateTimeQualifier());
 
         this.thread = new Thread(this, "Insert-Processor-" + id);
     }
@@ -123,12 +102,16 @@ public class InsertTaskProcessor implements Runnable {
     private void handleByBatch(List<ConsumedTask> tasks, int remainingRetries) {
 
         long start = System.currentTimeMillis();
+        String db = tasks.get(0).getTaskInfo().getDb();
+        String table = tasks.get(0).getTaskInfo().getTbl();
+        String partitionName = tasks.get(0).getTaskInfo().getPartitionName();
+        List<String> partitions = tasks.get(0).getTaskInfo().getPartitions();
 
-        LOG.info("start batch tasks: [{}.{}.{}], task size: {}", tasks.get(0).getTaskInfo().getDb(),
-                tasks.get(0).getTaskInfo().getTbl(), tasks.get(0).getTaskInfo().getPartitionName(), tasks.size());
+        LOG.info("start batch tasks: [{}.{}.{}], task size: {}", db, table
+                , partitionName, tasks.size());
 
-        HbaseUtils hbaseUtil = null;
-        MutationUtils mutationUtils = new MutationUtils();
+        InsertMutation mutationUtils = new InsertMutation(db, table, partitionName, partitions,
+                ConfigHolder.getConfig().getMetastoreUris(), ConfigHolder.getHbaseConf());
 
         try {
             int i = 0;
@@ -137,19 +120,11 @@ public class InsertTaskProcessor implements Runnable {
                 i++;
                 long startTime = System.currentTimeMillis();
                 LOG.info("batch file task {} start: {}", i, task.getTaskInfo().getFilePath());
-                handleTask(hbaseUtil, mutationUtils, task);
+                handleTask(mutationUtils, task);
                 LOG.info("batch file task {} success: {} cost: {}ms", i, task.getTaskInfo().getFilePath()
                         , System.currentTimeMillis() - startTime);
             }
-
-            //should not ignore HBase client closing error, to prevent from rowKey not write properly
-            if (null != hbaseUtil) {
-                hbaseUtil.close();
-            }
-            mutationUtils.closeMutator();
-            mutationUtils.getMutateTransaction().commit();
-            mutationUtils.closeClientQueitely();
-
+            mutationUtils.commitTransaction();
             try {
                 taskStatusListener.onTaskSuccess(tasks);
             } catch (Exception e) {
@@ -164,10 +139,7 @@ public class InsertTaskProcessor implements Runnable {
         } catch (TransactionException e) { // if get transaction exception, retry in batch, or send to retry queue when exceed max retries
             try {
                 try {
-                    mutationUtils.closeClientQueitely();
-                    mutationUtils.abortTxnQuietly();
-                    closeQuietly(hbaseUtil);
-                    mutationUtils.closeClientQueitely();
+                    mutationUtils.abortTxn();
                 } catch (Exception ex) {
                     LOG.warn("error closing", e);
                 }
@@ -185,39 +157,23 @@ public class InsertTaskProcessor implements Runnable {
             }
         } catch (Throwable t) { //if other error try batch by single
             LOG.error("batch file task failed, will try by each, task sample: {}" + tasks.get(0), t);
-            mutationUtils.closeMutatorQuietly();
-            mutationUtils.abortTxnQuietly();
-            closeQuietly(hbaseUtil);
-            mutationUtils.closeClientQueitely();
+            mutationUtils.abortTxn();
             for (ConsumedTask task : tasks) {
                 handleByEach(task, 2);
             }
         }
     }
 
-    private void closeQuietly(HbaseUtils hbaseUtil) {
-        try {
-            if (null != hbaseUtil) {
-                hbaseUtil.close();
-            }
-        } catch (Exception e) {
-            //no opts
-        }
-    }
-
     private void handleByEach(ConsumedTask task, int remainningRetry) {
 
-        MutationUtils mutationUtils = new MutationUtils();
-        HbaseUtils hbaseUtil = null;
+        InsertMutation mutationUtils = new InsertMutation(task.getTaskInfo().getDb(),
+                task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
+                task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigHolder.getHbaseConf());
         try {
             long start = System.currentTimeMillis();
             LOG.info("single task start: {}", task.getTaskInfo().getFilePath());
-            handleTask(hbaseUtil, mutationUtils, task);
+            handleTask(mutationUtils, task);
             LOG.info("single task success: {}, cost: {}ms", task.getTaskInfo().getFilePath(), System.currentTimeMillis() - start);
-            if (null != hbaseUtil) {
-                hbaseUtil.close();
-            }
-            mutationUtils.closeMutator();
             mutationUtils.commitTransaction();
             try {
                 taskStatusListener.onTaskSuccess(task);
@@ -227,12 +183,7 @@ public class InsertTaskProcessor implements Runnable {
             }
 
         } catch (TransactionException e) { // if get transaction exception retry batch, or send to retry queue
-
-            mutationUtils.closeMutatorQuietly();
-            mutationUtils.abortTxnQuietly();
-            closeQuietly(hbaseUtil);
-            mutationUtils.closeClientQueitely();
-
+            mutationUtils.abortTxn();
             if (--remainningRetry > 0) {
                 long start = System.currentTimeMillis();
                 LOG.info("single task retry start: {}, remaining retries: {}", task.getTaskInfo().getFilePath(), remainningRetry);
@@ -246,10 +197,7 @@ public class InsertTaskProcessor implements Runnable {
         } catch (Throwable t) { //if other error try batch by single
             LOG.error("file task failed, will send to error queue: {}", task.getTaskInfo(), t);
             try {
-                mutationUtils.closeMutatorQuietly();
-                mutationUtils.abortTxnQuietly();
-                closeQuietly(hbaseUtil);
-                mutationUtils.closeClientQueitely();
+                mutationUtils.abortTxn();
                 taskStatusListener.onTaskError(task);
             } catch (Throwable e) {
                 LOG.error("error abort txn", e);
@@ -258,11 +206,10 @@ public class InsertTaskProcessor implements Runnable {
     }
 
 
-    private void handleTask(HbaseUtils hbaseUtil, MutationUtils mutationUtils, ConsumedTask task) throws Exception {
+    private void handleTask(InsertMutation mutationUtils, ConsumedTask task) throws Exception {
 
         FileSystem fileSystem = FileSystem.get(new Configuration());
         Path path = new Path(task.getTaskInfo().getFilePath());
-        String dbTable = task.getTaskInfo().getDb() + "." + task.getTaskInfo().getTbl();
 
         if (!fileSystem.exists(path)) {
             if (fileSystem.exists(new Path(task.getTaskInfo().getFilePath() + FILE_PROCESSED_SUFIX))) {
@@ -273,59 +220,15 @@ public class InsertTaskProcessor implements Runnable {
             return;
         }
 
-        if (null == hbaseUtil) {
-            hbaseUtil = HbaseUtils.getTableInstance(config.getRowIdToRecIdHbaseTbl());
-        }
-
         try (AvroFileReader reader = new AvroFileReader(new Path(task.getTaskInfo().getFilePath()))) {
             Schema recordSchema = reader.getSchema();
             if (!mutationUtils.initialized()) {
-
-                mutationUtils.setFactory(new AvroMutationFactory(new Configuration(), new AvroObjectInspector(task.getTaskInfo().getDb(),
-                        task.getTaskInfo().getTbl(), recordSchema)));
-
-                mutationUtils.setMutatorClient(new MutatorClientBuilder()
-                        .lockFailureListener(new HiveLockFailureListener())
-                        .addSinkTable(task.getTaskInfo().getDb(), task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(), true)
-                        .metaStoreUri(config.getMetastoreUris())
-                        .build());
-                mutationUtils.getMutatorClient().connect();
-
-                mutationUtils.setMutateTransaction(mutationUtils.getMutatorClient().newTransaction());
-                mutationUtils.getMutateTransaction().begin();
-
-                List<AcidTable> destinations = mutationUtils.getMutatorClient().getTables();
-                mutationUtils.setMutateCoordinator(new MutatorCoordinatorBuilder()
-                        .metaStoreUri(config.getMetastoreUris())
-                        .table(destinations.get(0))
-                        .mutatorFactory(mutationUtils.getFactory())
-                        .build());
-
-                mutationUtils.setInitialized();
+                mutationUtils.beginTransaction(recordSchema);
             }
             Long bytes = fileSystem.getFileStatus(path).getLen();
-            long transactionId = mutationUtils.getMutateTransaction().getTransactionId();
-            List<String> partitions = task.getTaskInfo().getPartitions();
-            String dbTblPrefix = dbTable + '_';
-            MutatorCoordinator coordinator = mutationUtils.getMutateCoordinator();
-            String updateColumn = RecordUtils.getUpdateCol(dbTable, recordSchema);
-
             while (reader.hasNext()) {
                 GenericData.Record record = reader.next();
-                GenericData.Record keyRecord = (GenericData.Record) record.get(Constants.AVRO_KEY_RECORD_ID);
-                String recordId = transactionId + "_" + BUCKET_ID + "_" + (mutationUtils.incAndReturnRowId());
-                Put put = new Put(Bytes.toBytes(dbTblPrefix +
-                        GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(AVRO_KEY_RECORD_ID).schema()))
-                );
-                put.addColumn(columnFamily, recordIdColIdentifier, Bytes.toBytes(recordId));
-                if (!StringUtils.isEmpty(updateColumn)) {
-                    Long updateTime = RecordUtils.getFieldAsTimeMillis(updateColumn, record);
-                    if (null != updateColumn) {
-                        put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(updateTime));
-                    }
-                }
-                hbaseUtil.insertAsync(put);
-                coordinator.insert(partitions, record);
+                mutationUtils.insert(record, false);
             }
             MetricReporter.insertedBytes(bytes);
         }

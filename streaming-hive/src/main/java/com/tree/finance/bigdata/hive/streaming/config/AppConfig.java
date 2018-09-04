@@ -50,12 +50,6 @@ public abstract class AppConfig {
     @Config("hbase.recordId.col.qualifier")
     @Default("recordId")
     public abstract String getRecordIdQualifier();
-    @Config("hbase.update.time.col.qualifier")
-    @Default("update_time")
-    public abstract String getUpdateTimeQualifier();
-    @Config("hbase.batch.size")
-    @Default("100")
-    public abstract Integer getHbaseBatchSize();
     @Config("hbase.zookeeper.quorum")
     public abstract String getHbaseZkQuorum();
     @Config("zookeeper.znode.parent")
@@ -74,9 +68,6 @@ public abstract class AppConfig {
     public abstract Integer getTaskRetriesOnError();
 
     //hive config
-    @Config("hive.table.cluster.columns")
-    @Default("createdate,createtime,creatdate,creattime,createddatetime,createdtime,create_date")
-    public abstract String getDefaultClusterCols();
     @Config("metastore.uris")
     public abstract String getMetastoreUris();
     //used to create hive tables
@@ -95,18 +86,5 @@ public abstract class AppConfig {
     @Config("delete.intermediate.file.on.success")
     @Default("true")
     public abstract boolean deleteAvroOnSuccess();
-
-    //time identifier
-    @Config("record.column.time.identifier")
-    @Default("time,date,createat,createdat,updateat,updatedat")
-    public abstract String timeColIdentifier();
-    //update identifier
-    @Config("record.column.update.identifier")
-    @Default("update,updat")
-    public abstract String updateColIdentifier();
-    //create identifier
-    @Config("record.column.create.identifier")
-    @Default("create,creat")
-    public abstract String createColIdentifier();
 
 }

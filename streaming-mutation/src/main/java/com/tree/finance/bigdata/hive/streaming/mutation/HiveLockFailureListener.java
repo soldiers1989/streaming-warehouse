@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.task.listener;
+package com.tree.finance.bigdata.hive.streaming.mutation;
 
 import org.apache.hive.hcatalog.streaming.mutate.client.lock.LockFailureListener;
 import org.slf4j.Logger;

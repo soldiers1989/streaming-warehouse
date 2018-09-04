@@ -1,6 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.hbase;
 
-import com.tree.finance.bigdata.hive.streaming.utils.hbase.HbaseUtils;
+import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;

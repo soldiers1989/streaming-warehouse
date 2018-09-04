@@ -42,7 +42,7 @@ public class TestMutate {
 
         schema = new Schema.Parser().parse(TestConstants.schemaStr);
 
-        MutatorFactory factory = new AvroMutationFactory(conf, new AvroObjectInspector(null, null, schema));
+        MutatorFactory factory = new AvroMutationFactory(conf, new AvroObjectInspector(null, null, schema, null));
         MutatorClient client = new MutatorClientBuilder()
                 .addSinkTable(table.getDbName(), table.getTableName(), true)
                 .metaStoreUri(metaStoreUri)
@@ -84,7 +84,7 @@ public class TestMutate {
 
         schema = new Schema.Parser().parse(TestConstants.updateSchemaStr);
 
-        MutatorFactory factory = new AvroMutationFactory(conf, new AvroObjectInspector(null, null, schema));
+        MutatorFactory factory = new AvroMutationFactory(conf, new AvroObjectInspector(null, null, schema, null));
         MutatorClient client = new MutatorClientBuilder()
                 .addSinkTable(table.getDbName(), table.getTableName(), true)
                 .metaStoreUri(metaStoreUri)
