@@ -9,6 +9,7 @@ import java.util.List;
  */
 public class TaskInfo {
 
+    private String id;
     private String db;
     private String tbl;
     private List<String> partitions;
@@ -20,7 +21,8 @@ public class TaskInfo {
     //任务更新时间：创建时间、重试时间
     private Long lastUpdateTime;
 
-    public TaskInfo(String db, String tbl, List<String> partitions, String partitionName, String filePath, Operation op) {
+    public TaskInfo(String id, String db, String tbl, List<String> partitions, String partitionName, String filePath, Operation op) {
+        this.id = id;
         this.db = db;
         this.tbl = tbl;
         this.partitions = partitions;
@@ -29,6 +31,10 @@ public class TaskInfo {
         this.op = op;
         this.retryCount = 0;
         this.lastUpdateTime = System.currentTimeMillis();
+    }
+
+    public String getId() {
+        return id;
     }
 
     public String getDb() {

@@ -95,15 +95,14 @@ public class WriterManager extends WriterFactory {
     @Override
     public void close() {
         this.running = false;
-        while (countDownLatch.getCount() != 0) {
-            try {
-                countDownLatch.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                LOG.warn("interrupted");
-            }
+        this.checkThread.interrupt();
+        try {
+            countDownLatch.await();
+        }catch (InterruptedException e){
+            LOG.warn("interrupted while stopping");
         }
         writerMap.forEach(this::closeImmedidately);
+        LOG.info("WriterManager closed");
         this.fileManager.close();
     }
 
@@ -116,7 +115,7 @@ public class WriterManager extends WriterFactory {
                 LOG.error("error checking writers", t);
             }
         }
-        LOG.info("WriterFactory stopped...");
+        LOG.info("check thread stopped...");
     }
 
     private void closeIfExpired(WriterRef ref, Writer writer) {
@@ -137,7 +136,7 @@ public class WriterManager extends WriterFactory {
             writer.close();
             fileManager.commit(ref);
         } catch (Exception e) {
-            LOG.error("failed to check writer expiration", e);
+            LOG.error("", e);
         }
     }
 }

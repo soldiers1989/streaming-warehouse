@@ -1,11 +1,8 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
-import com.google.common.collect.Lists;
-import com.mysql.cj.core.MysqlType;
 import com.tree.finance.bigdata.hive.streaming.utils.hive.HiveDDLUtils;
 import org.junit.Test;
 
-import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,12 +22,10 @@ public class TestHiveTableUtils {
     }
 
     @Test
-    public void testMysqlType() {
-        MysqlType.valueOf("DOUBLE_UNSIGNED");
-    }
-
-    @Test
     public void testRegex() {
+        String a = null;
+        StringBuilder sb = new StringBuilder().append(a);
+        System.out.println(sb.toString());
         String regex = "(\\w+)(\\([0-9]+\\))";
         Pattern pattern = Pattern.compile(regex);
         Matcher m = pattern.matcher("table(3)");

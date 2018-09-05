@@ -11,4 +11,24 @@
     <artifactId>streaming-api</artifactId>
     <version>${parent.version}</version>
 
+    <properties>
+        <ver.c3p0>0.9.1.2</ver.c3p0>
+    </properties>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>c3p0</groupId>
+            <artifactId>c3p0</artifactId>
+            <version>${ver.c3p0}</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>${ver.mysql}</version>
+        </dependency>
+
+    </dependencies>
 </project>

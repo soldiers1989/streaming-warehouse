@@ -20,7 +20,7 @@ public class MqTest {
     @Test
     public void sentMqTask() throws Exception{
         String path = "/data/kafka-connect/sink/UPDATE/test/par_test/y=2018/m=07/d=11/1/0-192.168.201.138-1531807836556.done";
-        TaskInfo taskInfo = new TaskInfo("test", "par_test", Lists.newArrayList("2018", "07", "11")
+        TaskInfo taskInfo = new TaskInfo("test-id","test", "par_test", Lists.newArrayList("2018", "07", "11")
                 , "y=2018/m=07/d=11", path, Operation.UPDATE);
         String msgBody = JSON.toJSONString(taskInfo);
         RabbitMqUtils rabbitMqUtils = RabbitMqUtils.getInstance("localhost", 5672);

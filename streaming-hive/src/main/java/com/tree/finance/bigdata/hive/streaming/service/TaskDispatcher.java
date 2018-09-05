@@ -1,8 +1,11 @@
-package com.tree.finance.bigdata.hive.streaming.task.processor;
+package com.tree.finance.bigdata.hive.streaming.service;
 
 import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
-import com.tree.finance.bigdata.hive.streaming.task.type.ConsumedTask;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
+import com.tree.finance.bigdata.hive.streaming.task.processor.InsertTaskProcessor;
+import com.tree.finance.bigdata.hive.streaming.task.processor.UpdateTaskProcessor;
 import com.tree.finance.bigdata.task.Operation;
+import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,20 +26,26 @@ public class TaskDispatcher implements Service {
 
     private AppConfig config;
 
+    private ConnectionFactory factory;
+
     public TaskDispatcher(AppConfig config) {
         this.config = config;
     }
 
     public void init() {
+        this.factory = new ConnectionFactory.Builder().jdbcUrl(config.getTaskDbUrl())
+                .user(config.getTaskDbUser()).password(config.getTaskDbPassword())
+                .acquireIncrement(1).initialPoolSize(5).maxPollSize(10).build();
+
         this.insertExecutor = new InsertTaskProcessor[config.getInsertProcessorCores()];
         for (int i = 0; i < config.getInsertProcessorCores(); i++) {
-            insertExecutor[i] = new InsertTaskProcessor(config, i);
+            insertExecutor[i] = new InsertTaskProcessor(config, factory, i);
             insertExecutor[i].init();
         }
 
         this.updateExecutor = new UpdateTaskProcessor[config.getUpdateProcessorCores()];
         for (int i = 0; i < config.getUpdateProcessorCores(); i++) {
-            updateExecutor[i] = new UpdateTaskProcessor(config, i);
+            updateExecutor[i] = new UpdateTaskProcessor(config, factory, i);
             updateExecutor[i].init();
         }
 

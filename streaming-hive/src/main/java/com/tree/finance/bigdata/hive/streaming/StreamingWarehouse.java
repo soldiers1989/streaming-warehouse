@@ -2,8 +2,8 @@ package com.tree.finance.bigdata.hive.streaming;
 
 import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
-import com.tree.finance.bigdata.hive.streaming.task.processor.TaskConsumer;
-import com.tree.finance.bigdata.hive.streaming.task.processor.TaskDispatcher;
+import com.tree.finance.bigdata.hive.streaming.service.TaskConsumerService;
+import com.tree.finance.bigdata.hive.streaming.service.TaskDispatcher;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricServer;
 import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
 import org.slf4j.Logger;
@@ -18,7 +18,7 @@ public class StreamingWarehouse {
 
     private static Logger LOG = LoggerFactory.getLogger(StreamingWarehouse.class);
 
-    private TaskConsumer taskDispatcher;
+    private TaskConsumerService taskDispatcher;
 
     private TaskDispatcher processor;
 
@@ -28,7 +28,7 @@ public class StreamingWarehouse {
 
     public StreamingWarehouse(AppConfig config) {
         this.processor = new TaskDispatcher(config);
-        this.taskDispatcher = new TaskConsumer(config, processor);
+        this.taskDispatcher = new TaskConsumerService(config, processor);
         this.config = config;
         this.metricServer = new MetricServer(config.getPrometheusServerPort());
     }

@@ -1,8 +1,8 @@
-package com.tree.finance.bigdata.hive.streaming.task.processor;
+package com.tree.finance.bigdata.hive.streaming.service;
 
 import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.RabbitMqTaskConsumer;
-import com.tree.finance.bigdata.hive.streaming.task.type.ConsumedTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +13,7 @@ import java.util.concurrent.CountDownLatch;
  * Description:
  * Created in 2018/7/25 11:06
  */
-public class TaskConsumer implements Service{
+public class TaskConsumerService implements Service {
 
     private Thread consumeThread;
 
@@ -21,13 +21,13 @@ public class TaskConsumer implements Service{
 
     private com.tree.finance.bigdata.hive.streaming.task.consumer.TaskConsumer taskConsumer;
 
-    private static Logger LOG = LoggerFactory.getLogger(TaskConsumer.class);
+    private static Logger LOG = LoggerFactory.getLogger(TaskConsumerService.class);
 
     private TaskDispatcher processor;
 
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
-    public TaskConsumer(AppConfig config, TaskDispatcher processor) {
+    public TaskConsumerService(AppConfig config, TaskDispatcher processor) {
         this.taskConsumer = new RabbitMqTaskConsumer(config);
         this.processor = processor;
         consumeThread = new Thread(this::fetchTask, "TaskDispatcher");

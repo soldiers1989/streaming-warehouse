@@ -1,15 +1,11 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
 import com.tree.finance.bigdata.hive.streaming.mutation.AvroMutationFactory;
-import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
 import com.tree.finance.bigdata.hive.streaming.mutation.HiveLockFailureListener;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.AvroObjectInspector;
-import com.tree.finance.bigdata.schema.SchemaConstants;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hive.hcatalog.streaming.mutate.client.AcidTable;
 import org.apache.hive.hcatalog.streaming.mutate.client.MutatorClient;
@@ -18,8 +14,9 @@ import org.apache.hive.hcatalog.streaming.mutate.client.Transaction;
 import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorCoordinator;
 import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorCoordinatorBuilder;
 import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -33,6 +30,7 @@ public abstract class Mutation {
     protected static final byte[] columnFamily = Bytes.toBytes("f");
     protected static final byte[] recordIdColIdentifier = Bytes.toBytes("recordId");
     protected static final byte[] updateTimeColIdentifier = Bytes.toBytes("update_time");
+    private static Logger LOG = LoggerFactory.getLogger(Mutation.class);
 
     protected MutatorClient mutatorClient;
 
@@ -76,15 +74,14 @@ public abstract class Mutation {
         this.hbaseConf = hbaseConf;
     }
 
-    protected void setHbaseUtils(HbaseUtils hbaseUtils) {
-        this.hbaseUtils = hbaseUtils;
-    }
-
-    public boolean initialized() {
+    public boolean txnStarted() {
         return initialized;
     }
 
     public void commitTransaction() throws Exception {
+        if (!txnStarted()) {
+            return;
+        }
         //should not ignore HBase client closing error, to prevent from rowKey not write properly
         hbaseUtils.close();
         mutateCoordinator.close();
@@ -103,6 +100,9 @@ public abstract class Mutation {
     }
 
     public void abortTxn() {
+        if (!txnStarted()){
+            return;
+        }
         closeMutatorQuietly();
         try {
             if (mutateTransaction != null) {
@@ -136,7 +136,14 @@ public abstract class Mutation {
     }
 
     public void beginTransaction(Schema schema) throws Exception {
+
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
+
+        if (StringUtils.isEmpty(updateCol)){
+            LOG.error("update column not found for table: {}, schema: {}", db + "." + table, schema);
+            throw new RuntimeException("update column not found");
+        }
+
         this.recordSchema = schema;
         this.factory = new AvroMutationFactory(new Configuration(), new AvroObjectInspector(db,
                 table, schema, hbaseUtils));
@@ -155,7 +162,7 @@ public abstract class Mutation {
                 .mutatorFactory(this.factory)
                 .build();
         this.transactionId = mutateTransaction.getTransactionId();
-        if (null != this.hbaseUtils) {
+        if (null == this.hbaseUtils) {
             this.hbaseUtils = HbaseUtils.getTableInstance(hbaseConf);
         }
         this.initialized = true;

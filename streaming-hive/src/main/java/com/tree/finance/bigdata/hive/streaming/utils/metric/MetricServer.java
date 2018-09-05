@@ -1,6 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.utils.metric;
 
-import com.tree.finance.bigdata.hive.streaming.task.processor.Service;
+import com.tree.finance.bigdata.hive.streaming.service.Service;
 import io.prometheus.client.exporter.HTTPServer;
 
 /**

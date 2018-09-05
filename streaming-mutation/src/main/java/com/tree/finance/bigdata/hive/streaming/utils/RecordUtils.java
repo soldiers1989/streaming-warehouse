@@ -76,7 +76,7 @@ public class RecordUtils {
                 }
             }
             //put empty avoid retry 
-            LOG.warn("found no update time column for table: {}, schema: {}, identifier: {}", table, fileSchema);
+            LOG.warn("found no update time column for table: {}, schema: {}", table, fileSchema);
             tableToUpdateCol.put(table, "");
             return "";
         }
@@ -84,10 +84,15 @@ public class RecordUtils {
     
     public static Long getFieldAsTimeMillis(String fieldName, GenericData.Record data) {
         if (StringUtils.isEmpty(fieldName)){
-            return null;
+            LOG.error("update time not found in record field: {}, value: {}", fieldName, data);
+            throw new RuntimeException("update time not found in record value");
         }
         Schema fieldSchema = data.getSchema().getField(FIELD_AFTER).schema().getField(fieldName).schema();
         Object value = ((GenericData.Record)data.get(FIELD_AFTER)).get(fieldName);
+        if (fieldSchema.getType().equals(Schema.Type.UNION)) {
+            fieldSchema = fieldSchema.getTypes().get(1);
+        }
+
 
         if (!StringUtils.isEmpty(fieldSchema.getProp(PROP_KEY_LOGICAL_TYPE))) {
             String logicalType = fieldSchema.getProp((PROP_KEY_LOGICAL_TYPE));
@@ -104,7 +109,7 @@ public class RecordUtils {
         }
 
         LOG.error("update column not in support type, column: {}, schema: {}", fieldName, fieldSchema);
-        return null;
+        throw new RuntimeException("update column not found");
 
     }
 

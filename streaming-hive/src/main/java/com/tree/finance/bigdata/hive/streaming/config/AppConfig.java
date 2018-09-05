@@ -86,5 +86,19 @@ public abstract class AppConfig {
     @Config("delete.intermediate.file.on.success")
     @Default("true")
     public abstract boolean deleteAvroOnSuccess();
+    @Config("task.greedy.process.batch.limit")
+    @Default("10")
+    public abstract int getGreedyProcessBatchLimit();
+
+    //task database config
+    @Config("task.db.url")
+    public abstract String getTaskDbUrl();
+    @Config("task.db.user")
+    public abstract String getTaskDbUser();
+    @Config("task.db.password")
+    public abstract String getTaskDbPassword();
+    @Config("task.tbl.name")
+    @Default("task_info")
+    public abstract String getTaskTleName();
 
 }

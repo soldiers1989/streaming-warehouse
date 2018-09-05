@@ -28,7 +28,7 @@ public class SinkConfig extends AbstractConfig {
     public static final ConfigDef CONFIG_DEF = new ConfigDef()
 
             //database config
-            .define(KEY.HIVE_DATABASE_NAME, ConfigDef.Type.STRING,  null, new ConfigDef.NonEmptyString(),
+            .define(KEY.HIVE_DATABASE_NAME, ConfigDef.Type.STRING, null, new ConfigDef.NonEmptyString(),
                     ConfigDef.Importance.MEDIUM, "destination database name in hive")
 
             //Writer options
@@ -56,7 +56,17 @@ public class SinkConfig extends AbstractConfig {
 
             //HADOOP
             .define(KEY.HADOOP_CONF_PATH, ConfigDef.Type.STRING, HADOOP_CONF_PATH_DEFAULT,
-                    ConfigDef.Importance.HIGH, "");
+                    ConfigDef.Importance.HIGH, "")
+
+            //Task DB
+            .define(KEY.TASK_DB_JDBC_URL, ConfigDef.Type.STRING, null, new ConfigDef.NonEmptyString(),
+                    ConfigDef.Importance.MEDIUM, "task db jdbc url")
+            .define(KEY.TASK_DB_USER, ConfigDef.Type.STRING, null, new ConfigDef.NonEmptyString(),
+                    ConfigDef.Importance.MEDIUM, "task db user")
+            .define(KEY.TASK_DB_PASSWORD, ConfigDef.Type.STRING, null, new ConfigDef.NonEmptyString(),
+                    ConfigDef.Importance.MEDIUM, "task db password")
+            .define(KEY.TASK_TABLE_NAME, ConfigDef.Type.STRING, "task_info", new ConfigDef.NonEmptyString(),
+                    ConfigDef.Importance.MEDIUM, "task info table name");
 
 
     public String getWriterClass() {
@@ -69,6 +79,22 @@ public class SinkConfig extends AbstractConfig {
 
     public long getWriterMaxUpdateMsg() {
         return getLong(KEY.WRITER_MAX_UPDATE_MSG);
+    }
+
+    public String getTaskDbUrl() {
+        return getString(KEY.TASK_DB_JDBC_URL);
+    }
+
+    public String getTaskDbUser() {
+        return getString(KEY.TASK_DB_USER);
+    }
+
+    public String getTaskDbPassword() {
+        return getString(KEY.TASK_DB_PASSWORD);
+    }
+
+    public String getTaskTable() {
+        return getString(KEY.TASK_TABLE_NAME);
     }
 
     public interface KEY {
@@ -94,7 +120,14 @@ public class SinkConfig extends AbstractConfig {
         String HADOOP_CONF_PATH = "hadoop.conf.dir";
         String SINK_WRITER_CLASS = "sink.writer.class";
 
+        //topic to database mapping
         String HIVE_DATABASE_NAME = "hive.destination.database.name";
+
+        //database used to store task info
+        String TASK_DB_JDBC_URL = "task.db.jdbc.url";
+        String TASK_DB_USER = "task.db.user";
+        String TASK_DB_PASSWORD = "task.db.password";
+        String TASK_TABLE_NAME = "task.table.name";
     }
 
     interface Validator {

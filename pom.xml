@@ -25,6 +25,7 @@
         <ver.rabbitmq>3.6.5</ver.rabbitmq>
         <ver.fastjson>1.2.47</ver.fastjson>
         <ver.promethues>0.4.0</ver.promethues>
+        <ver.mysql>5.1.47</ver.mysql>
     </properties>
 
     <dependencies>

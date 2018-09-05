@@ -34,7 +34,14 @@ public class HbaseUtils {
     private HbaseUtils(String tableName, Configuration config) throws IOException {
         this.buffer = new ArrayList<>();
         this.batchSize = config.getInt(KEY_HBASE_INSERT_BATCH_SIZE, 500);
-        connection = ConnectionFactory.createConnection(config);
+        if (connection == null) {
+            synchronized (HbaseUtils.class) {
+                if (connection == null) {
+                    config.setInt("zookeeper.session.timeout", 3600000);
+                    connection = ConnectionFactory.createConnection(config);
+                }
+            }
+        }
         this.htable = connection.getTable(TableName.valueOf(tableName));
     }
 

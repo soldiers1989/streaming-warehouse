@@ -4,14 +4,21 @@ import com.alibaba.fastjson.JSON;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.config.DfsConfigHolder;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.avro.AvroWriterRef;
-import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
 import com.tree.finance.bigdata.task.FileSuffix;
 import com.tree.finance.bigdata.task.TaskInfo;
+import com.tree.finance.bigdata.task.TaskStatus;
+import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
+import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
+import com.tree.finance.bigdata.utils.network.NetworkUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.Statement;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -26,6 +33,10 @@ public class FileManager {
 
     private SinkConfig sinkConfig;
 
+    private static String SEP = ",";
+
+    private static String QUOTE = "'";
+
     private volatile boolean stop = false;
 
     private Thread thread;
@@ -38,6 +49,8 @@ public class FileManager {
 
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
+    private ConnectionFactory connectionFactory;
+
     public FileManager(SinkConfig sinkConfig) {
         this.sinkConfig = sinkConfig;
         this.queueName = sinkConfig.getRabbitMqTaskQueue();
@@ -46,6 +59,9 @@ public class FileManager {
     }
 
     public void init() {
+        this.connectionFactory = new ConnectionFactory.Builder().jdbcUrl(sinkConfig.getTaskDbUrl())
+                .user(sinkConfig.getTaskDbUser()).password(sinkConfig.getTaskDbPassword())
+                .acquireIncrement(3).maxPollSize(10).minPollSize(1).initialPoolSize(1).build();
         this.thread.start();
     }
 
@@ -56,9 +72,10 @@ public class FileManager {
     public void sendTask() {
 
         while (!stop) {
+            Random random = new Random();
             try {
                 AvroWriterRef ref = (AvroWriterRef) refs.poll();
-                if (ref == null){
+                if (ref == null) {
                     Thread.sleep(2000);
                     continue;
                 }
@@ -77,28 +94,33 @@ public class FileManager {
                     FileSystem fs = FileSystem.get(DfsConfigHolder.getConf());
                     fs.rename(path, pathSent);
 
-                    TaskInfo taskInfo = new TaskInfo(ref.getDb(), ref.getTable(), ref.getPartitionVals()
+                    String id = System.currentTimeMillis() + "-" + NetworkUtils.localIp + "-" + sinkConfig.getTaskId()
+                            + "-" + random.nextInt(100);
+
+                    TaskInfo taskInfo = new TaskInfo(id, ref.getDb(), ref.getTable(), ref.getPartitionVals()
                             , ref.getPartitionName(), pathSent.toString(), ref.getOp());
                     String msgBody = JSON.toJSONString(taskInfo);
 
-                    if (sendWithRetry(msgBody)) {
-                        LOG.info("sent file: [{}] to mq success", pathSent);
-                    } else {
-                        //todo alarm can't send task to queue
+                    try {
+                        writeToDb(taskInfo);
+                        sendWithRetry(msgBody);
+                    }catch (Exception e) {
+                        LOG.error("failed to create file path: []", path, e);
                         fs.rename(pathSent, path);
                     }
+                    LOG.info("create file task: [{}] success", pathSent);
 
                 } else {
-                    //todo alarm unkonw file
                     LOG.error("unknown file name: {}", path);
                 }
 
             } catch (Throwable e) {
                 //todo alarm serious failure
-                LOG.error("", e);
+                LOG.error("may cause data inaccuracy", e);
             }
         }
         countDownLatch.countDown();
+        LOG.info("FileManager stopped");
     }
 
     private boolean sendWithRetry(String msgBody) {
@@ -114,25 +136,44 @@ public class FileManager {
         return false;
     }
 
+    private void writeToDb(TaskInfo taskInfo) throws Exception {
+        try (Connection conn = this.connectionFactory.getConnection();
+             Statement stmt = conn.createStatement()) {
+            StringBuilder sb = new StringBuilder("insert into ")
+                    .append(sinkConfig.getTaskTable())
+                    .append("(id, db, table_name, partition_name, file_path, op, status, create_time)")
+                    .append("values (")
+                    .append(QUOTE).append(taskInfo.getId()).append(QUOTE).append(SEP)
+                    .append(QUOTE).append(taskInfo.getDb()).append(QUOTE).append(SEP)
+                    .append(QUOTE).append(taskInfo.getTbl()).append(QUOTE).append(SEP)
+                    .append(QUOTE).append(taskInfo.getPartitionName()).append(QUOTE).append(SEP)
+                    .append(QUOTE).append(taskInfo.getFilePath()).append(QUOTE).append(SEP)
+                    .append(QUOTE).append(taskInfo.getOp().code()).append(QUOTE).append(SEP)
+                    .append(QUOTE).append(TaskStatus.NEW).append(QUOTE).append(SEP)
+                    .append(QUOTE).append(new DateTime().toString("yyyy-MM-dd HH:mm:ss")).append(QUOTE)
+                    .append(")");
+            LOG.info("going to execute: {}", sb.toString());
+            stmt.execute(sb.toString());
+        }
+    }
+
     public void close() {
-        while (!refs.isEmpty()){
+        while (!refs.isEmpty()) {
             try {
                 Thread.sleep(2000);
                 LOG.info("waiting FileManager to stop, remaining files in queue: {}", refs.size());
-            }catch (InterruptedException e){
+            } catch (InterruptedException e) {
                 LOG.error("interrupted", e);
             }
         }
         stop = true;
-        while (countDownLatch.getCount() != 0) {
-            try {
-                countDownLatch.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                LOG.warn("interrupted");
-            }
+        try {
+            countDownLatch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.warn("interrupted");
         }
-
+        this.connectionFactory.close();
     }
 
 }

@@ -1,7 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.task.processor;
-
-import com.tree.finance.bigdata.hive.streaming.task.type.ConsumedTask;
-import com.tree.finance.bigdata.task.TaskInfo;
+package com.tree.finance.bigdata.hive.streaming.service;
 
 /**
  * @author Zhengsj

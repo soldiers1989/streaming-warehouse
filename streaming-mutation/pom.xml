@@ -13,7 +13,7 @@
 
     <properties>
         <ver.hive>2.3.3-1</ver.hive>
-        <ver.hbase>1.2.0</ver.hbase>
+        <ver.hbase>1.2.0-cdh5.12.1</ver.hbase>
     </properties>
 
     <dependencies>
@@ -64,4 +64,12 @@
         </dependency>
 
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>cloudera</id>
+            <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+        </repository>
+    </repositories>
+
 </project>

@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.task.type;
+package com.tree.finance.bigdata.hive.streaming.task.consumer;
 
 import com.tree.finance.bigdata.task.TaskInfo;
 

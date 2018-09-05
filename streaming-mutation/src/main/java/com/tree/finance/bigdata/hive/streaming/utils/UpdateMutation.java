@@ -30,8 +30,6 @@ public class UpdateMutation extends Mutation {
 
     private static Logger LOG = LoggerFactory.getLogger(UpdateMutation.class);
 
-    private Schema schema;
-
     TreeMap<String, GenericData.Record> recordIdsortedRecord = new TreeMap<>(Comparator.reverseOrder());
     Object2ObjectOpenHashMap<String, String> recordIdToBuziId = new Object2ObjectOpenHashMap();
     Object2LongOpenHashMap<String> recordToUpdateTime = new Object2LongOpenHashMap<>();
@@ -59,26 +57,41 @@ public class UpdateMutation extends Mutation {
 
         Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, record);
         Long hbaseTime = hbaseUtils.getLong(businessId, columnFamily, recordIdColIdentifier);
+
         if (null != hbaseTime && recordUpdateTime < hbaseTime) {
             return;
         }
+
         if (recordToUpdateTime.containsKey(recordId) && recordToUpdateTime.get(recordId) > recordUpdateTime) {
             return;
         }
 
         recordIdToBuziId.put(recordId, businessId);
         recordIdsortedRecord.put(recordId, record);
-        recordToUpdateTime.put(recordId, recordUpdateTime);
+        try{
+            recordToUpdateTime.put(recordId, recordUpdateTime);
+        }catch (Exception e) {
+            LOG.error("{}, {}", recordId == null, recordUpdateTime == null);
+            LOG.error("{}, {}", recordId, recordUpdateTime);
+            throw e;
+        }
     }
 
     @Override
-    public void beginTransaction(Schema schema) throws Exception {
-        this.schema = schema;
+    public void beginTransaction(Schema schema) {
+        this.recordSchema = schema;
+
+        this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
+
+        if (StringUtils.isEmpty(updateCol)){
+            LOG.error("update column not found for table: {}, schema: {}", db + "." + table, schema);
+            throw new RuntimeException("update column not found");
+        }
     }
 
     @Override
     public void commitTransaction() throws Exception {
-        super.beginTransaction(schema);
+        super.beginTransaction(recordSchema);
         for (Map.Entry<String, GenericData.Record> entry : recordIdsortedRecord.entrySet()) {
             GenericData.Record record = entry.getValue();
             if (record == null) {

@@ -14,8 +14,8 @@ import java.nio.ByteBuffer;
 public class LogicalDecimalObjectInspector extends WritableHiveDecimalObjectInspector {
 
 
-    public LogicalDecimalObjectInspector(String scaleStr, String precisionStr) {
-        super(new DecimalTypeInfo(Integer.valueOf(precisionStr), Integer.valueOf(scaleStr)));
+    public LogicalDecimalObjectInspector(int scale, int precision) {
+        super(new DecimalTypeInfo(precision, scale));
     }
 
     @Override

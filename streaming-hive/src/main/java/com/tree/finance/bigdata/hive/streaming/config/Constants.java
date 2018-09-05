@@ -11,4 +11,6 @@ public interface Constants {
     String MYSQL_DB_CONF_FILE = "/mysql.database.properties";
     String MYSQL_DB_USER = "source.db.user";
     String MYSQL_DB_PASSWORD = "source.db.password";
+    String SPACE = " ";
+    String SQL_VALUE_QUOTE = "'";
 }
