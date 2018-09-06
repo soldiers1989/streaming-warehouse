@@ -1,6 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.task.processor;
 
-import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.task.listener.DbTaskStatusListener;
 import com.tree.finance.bigdata.hive.streaming.task.listener.MqTaskStatusListener;
 import com.tree.finance.bigdata.task.TaskInfo;

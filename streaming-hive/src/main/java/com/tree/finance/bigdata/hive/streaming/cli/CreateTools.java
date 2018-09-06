@@ -1,11 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.cli;
 
-import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
-import com.tree.finance.bigdata.hive.streaming.utils.hive.HiveAdminUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.hive.HiveDDLUtils;
 
-import java.util.List;
 import java.util.Properties;
 
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_CONF_FILE;

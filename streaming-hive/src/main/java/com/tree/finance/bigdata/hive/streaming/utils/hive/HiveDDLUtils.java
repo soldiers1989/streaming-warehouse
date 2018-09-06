@@ -1,6 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.utils.hive;
 
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.config.Constants;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.RecordUtils;

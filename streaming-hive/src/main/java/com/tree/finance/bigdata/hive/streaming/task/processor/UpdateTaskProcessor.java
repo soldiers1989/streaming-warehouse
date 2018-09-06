@@ -1,7 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.task.processor;
 
-import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;

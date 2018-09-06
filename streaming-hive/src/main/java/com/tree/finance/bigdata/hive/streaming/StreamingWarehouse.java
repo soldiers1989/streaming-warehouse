@@ -1,7 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming;
 
-import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.service.TaskConsumerService;
 import com.tree.finance.bigdata.hive.streaming.service.TaskDispatcher;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricServer;

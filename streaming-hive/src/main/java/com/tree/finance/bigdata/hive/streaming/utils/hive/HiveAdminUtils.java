@@ -1,9 +1,5 @@
 package com.tree.finance.bigdata.hive.streaming.utils.hive;
 
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;

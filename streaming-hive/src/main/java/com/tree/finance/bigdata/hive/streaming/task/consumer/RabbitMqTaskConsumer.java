@@ -1,7 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.task.consumer;
 
 import com.alibaba.fastjson.JSON;
-import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.utils.mq.ChannelMsg;
 import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
 import com.tree.finance.bigdata.task.TaskInfo;

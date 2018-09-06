@@ -1,6 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.task.listener;
 
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;

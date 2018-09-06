@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.config;
+package com.tree.finance.bigdata.hive.streaming.config.imutable;
 
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.conf.Configuration;

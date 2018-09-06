@@ -1,6 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.service;
 
-import com.tree.finance.bigdata.hive.streaming.config.AppConfig;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.RabbitMqTaskConsumer;
 import org.slf4j.Logger;

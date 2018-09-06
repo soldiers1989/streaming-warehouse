@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.config;
+package com.tree.finance.bigdata.hive.streaming.config.imutable;
 
 import org.skife.config.Config;
 import org.skife.config.Default;

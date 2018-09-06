@@ -1,6 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.task.listener;
 
-import com.tree.finance.bigdata.hive.streaming.config.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.task.TaskInfo;
 import com.tree.finance.bigdata.task.TaskStatus;
 import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
