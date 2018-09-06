@@ -21,7 +21,7 @@
 
         <dependency>
             <groupId>com.tree.finance.bigdata</groupId>
-            <artifactId>streaming-mutation</artifactId>
+            <artifactId>streaming-common</artifactId>
             <version>1.0</version>
         </dependency>
 

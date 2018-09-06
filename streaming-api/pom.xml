@@ -8,27 +8,68 @@
         <version>1.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
+
     <artifactId>streaming-api</artifactId>
-    <version>${parent.version}</version>
 
     <properties>
-        <ver.c3p0>0.9.1.2</ver.c3p0>
+        <ver.hive>2.3.3-1</ver.hive>
+        <ver.hbase>1.2.0-cdh5.12.1</ver.hbase>
     </properties>
 
     <dependencies>
-
+        <!-- hive -->
         <dependency>
-            <groupId>c3p0</groupId>
-            <artifactId>c3p0</artifactId>
-            <version>${ver.c3p0}</version>
+            <groupId>org.apache.hive.hcatalog</groupId>
+            <artifactId>hive-hcatalog-streaming</artifactId>
+            <version>${ver.hive}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hive.hcatalog</groupId>
+            <artifactId>hive-hcatalog-core</artifactId>
+            <version>${ver.hive}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-exec</artifactId>
+            <version>${ver.hive}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-metastore</artifactId>
+            <version>${ver.hive}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-jdbc</artifactId>
+            <version>${ver.hive}</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>${ver.mysql}</version>
+            <groupId>com.tree.finance.bigdata</groupId>
+            <artifactId>streaming-common</artifactId>
+            <version>1.0</version>
+        </dependency>
+
+        <!-- hbase -->
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-client</artifactId>
+            <version>${ver.hbase}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>fastutil</groupId>
+            <artifactId>fastutil</artifactId>
+            <version>5.0.9</version>
         </dependency>
 
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>cloudera</id>
+            <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+        </repository>
+    </repositories>
+
 </project>

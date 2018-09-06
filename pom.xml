@@ -12,7 +12,7 @@
         <module>streaming-api</module>
         <module>streaming-avro</module>
         <module>streaming-hive</module>
-        <module>streaming-mutation</module>
+        <module>streaming-common</module>
     </modules>
 
     <properties>
