@@ -1,14 +1,15 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
-import com.tree.finance.bigdata.hive.streaming.constants.Constants;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.LogicalDateObjectInspector;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.TimeStampObjectInspector;
 import com.tree.finance.bigdata.schema.LogicalType;
 import com.tree.finance.bigdata.utils.common.StringUtils;
-import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.apache.hadoop.hive.serde2.io.DateWritable;
+import org.apache.hadoop.hive.serde2.io.TimestampWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +82,42 @@ public class RecordUtils {
             return "";
         }
     }
+
+    public static String getUpdateCol(String table, List<String> columns) {
+        if (tableToUpdateCol.containsKey(table)) {
+            return tableToUpdateCol.get(table);
+        }else {
+
+            for (String f : columns) {
+                String fieldName = f.toLowerCase();
+                boolean matchUpdate = false;
+                boolean matchTime = false;
+                for (String updateStr : UPDATE_IDENTIFIER) {
+                    if (fieldName.contains(updateStr)) {
+                        matchUpdate = true;
+                        break;
+                    }
+                }
+                if (! matchUpdate){
+                    continue;
+                }
+                for (String timeStr : TIME_IDENTIFIER) {
+                    if (fieldName.contains(timeStr)) {
+                        matchTime = true;
+                        break;
+                    }
+                }
+                if (matchUpdate && matchTime) {
+                    tableToUpdateCol.put(table, f);
+                    return f;
+                }
+            }
+            //put empty avoid retry
+            LOG.warn("found no update time column for table: {}, fields: {}", table, Arrays.toString(columns.toArray()));
+            tableToUpdateCol.put(table, "");
+            return "";
+        }
+    }
     
     public static Long getFieldAsTimeMillis(String fieldName, GenericData.Record data) {
         if (StringUtils.isEmpty(fieldName)){
@@ -92,7 +129,6 @@ public class RecordUtils {
         if (fieldSchema.getType().equals(Schema.Type.UNION)) {
             fieldSchema = fieldSchema.getTypes().get(1);
         }
-
 
         if (!StringUtils.isEmpty(fieldSchema.getProp(PROP_KEY_LOGICAL_TYPE))) {
             String logicalType = fieldSchema.getProp((PROP_KEY_LOGICAL_TYPE));
@@ -114,10 +150,6 @@ public class RecordUtils {
     }
 
     public static String getCreateTimeCol(String table, Collection<String> fieldNames) {
-
-        if (table.equalsIgnoreCase("loandb.lp_activity")){
-            System.out.println();
-        }
 
         if (tableToCreateTimeCol.containsKey(table)) {
             return tableToCreateTimeCol.get(table);
@@ -152,6 +184,17 @@ public class RecordUtils {
             return "";
         }
     }
-    
+
+    public static Long getFieldAsTimeMillis(Object value) {
+        if (value instanceof TimestampWritable) {
+            return ((TimestampWritable)value).getTimestamp().getTime();
+        }else if (value instanceof DateWritable) {
+            return ((DateWritable)value).get().getTime();
+        } else if (value instanceof LongWritable) {
+            return ((LongWritable) value).get();
+        } else {
+            throw new RuntimeException("unknown type: " + value.getClass());
+        }
+    }
     
 }

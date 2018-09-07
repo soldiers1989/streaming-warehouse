@@ -36,7 +36,7 @@ public class CreateTools {
         if (!parser.dbSpecified()) {
             hiveDDLUtils.createAllTables();
         } else {
-            hiveDDLUtils.createDDLFromMysql(parser.getDb(), parser.getTable(), parser.includeDigits());
+            hiveDDLUtils.createTable(parser.getDb(), parser.getTable(), parser.includeDigits());
         }
     }
 

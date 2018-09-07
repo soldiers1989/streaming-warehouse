@@ -1,9 +1,9 @@
 package com.tree.finance.bigdata.hive.streaming.utils.hive;
 
-import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.config.Constants;
-import com.tree.finance.bigdata.utils.common.StringUtils;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.utils.RecordUtils;
+import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hive.jdbc.HiveDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +11,10 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,12 +42,10 @@ public class HiveDDLUtils {
 
     public List<String> createAllTables() {
         List<String> allDDls = new ArrayList<>();
-        HiveAdminUtils adminUtils = new HiveAdminUtils(ConfigHolder.getConfig().getHiveServer2Url());
         for (Object db : properties.keySet()) {
             if (!MYSQL_DB_USER.equals(db) && !MYSQL_DB_PASSWORD.equals(db)) {
                 try {
-                    createDDLFromMysql(db.toString(), null, true);
-//                    adminUtils.createTable(createDDLFromMysql(db.toString(), null, true));
+                    createTable(db.toString(), null, true);
                     System.out.println("created hive table in " + db);
                 }catch (Exception e) {
                     System.out.println("failed to create ddl for database: " + db);
@@ -56,8 +57,7 @@ public class HiveDDLUtils {
         return allDDls;
     }
 
-    public List<String> createDDLFromMysql(String db, String[] tbls, boolean includeDigit) throws Exception {
-
+    public void createTable(String db, String[] tbls, boolean includeDigit) throws Exception {
         List<String> ddls = new ArrayList<>();
         ddls.add("create schema if not exists `" + db + "`");
         String createTemplate = getCreateTblTemplate();
@@ -119,7 +119,8 @@ public class HiveDDLUtils {
 
             }
         }
-        return ddls;
+        HiveAdminUtils adminUtils = new HiveAdminUtils(ConfigHolder.getConfig().getHiveServer2Url());
+        adminUtils.createTable(ddls);
     }
 
     private String buildClusterColumn(String tbl, Map<String, String> map) {

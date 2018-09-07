@@ -20,6 +20,7 @@ public class HiveAdminUtils {
 
 
     public void createTable(List<String> ddls) throws Exception {
+
         try (Connection connection = DriverManager.getConnection(hive2Url);
              Statement statement = connection.createStatement()) {
             for (String ddl : ddls) {

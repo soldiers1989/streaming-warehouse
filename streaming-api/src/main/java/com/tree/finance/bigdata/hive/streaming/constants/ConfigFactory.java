@@ -20,11 +20,11 @@ public class ConfigFactory {
     private static Logger LOG = LoggerFactory.getLogger(ConfigFactory.class);
 
     private static Properties loadProperties() {
-        try{
+        try {
             Properties prop = new Properties();
             prop.load(RabbitMqUtils.class.getResourceAsStream(MUTATION_COLUMN_CONF));
             return prop;
-        }catch (Exception e) {
+        } catch (Exception e) {
             LOG.error("", e);
             throw new RuntimeException(e);
         }
@@ -32,5 +32,32 @@ public class ConfigFactory {
 
     public static Properties getConfig() {
         return properties;
+    }
+
+
+    public static String getHbaseRecordIdColumnIdentifier() {
+        return properties.getProperty(Constants.KEY_HBASE_RECORD_ID_COL_IDENTIFIER);
+    }
+
+    public static String getHbaseUpdateTimeColumnIdentifier() {
+        return properties.getProperty(Constants.KEY_HBASE_UPDATE_TIEM_COL_IDENTIFIER);
+    }
+
+    public static String getHbaseColumnFamily() {
+        return properties.contains(Constants.KEY_HBASE_DEFAULT_COLUMN_FAMILY) ?
+                properties.getProperty(Constants.KEY_HBASE_DEFAULT_COLUMN_FAMILY) : "f";
+    }
+
+    public static String getHbaseZookeeperQuorum() {
+        return properties.getProperty(Constants.KEY_HBASE_ZOOKEEPER_QUORUM);
+    }
+
+    public static String getHbaseRecordIdTbl() {
+        return properties.getProperty(Constants.KEY_HBASE_RECORDID_TBL);
+    }
+
+    public static String getHbaseZnodeParent() {
+        return properties.contains(Constants.KEY_HBASE_ZNODE_PARENT) ?
+        properties.getProperty(Constants.KEY_HBASE_ZNODE_PARENT) : "/hbase";
     }
 }

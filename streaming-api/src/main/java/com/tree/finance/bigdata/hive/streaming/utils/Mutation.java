@@ -1,5 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
+import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.mutation.AvroMutationFactory;
 import com.tree.finance.bigdata.hive.streaming.mutation.HiveLockFailureListener;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.AvroObjectInspector;
@@ -16,6 +17,7 @@ import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorCoordinatorBuilde
 import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.security.krb5.Config;
 
 import java.util.List;
 
@@ -27,9 +29,9 @@ import java.util.List;
 public abstract class Mutation {
 
     protected static final String BUCKET_ID = "0";
-    protected static final byte[] columnFamily = Bytes.toBytes("f");
-    protected static final byte[] recordIdColIdentifier = Bytes.toBytes("recordId");
-    protected static final byte[] updateTimeColIdentifier = Bytes.toBytes("update_time");
+    protected static final byte[] columnFamily = Bytes.toBytes(ConfigFactory.getHbaseColumnFamily());
+    protected static final byte[] recordIdColIdentifier = Bytes.toBytes(ConfigFactory.getHbaseRecordIdColumnIdentifier());
+    protected static final byte[] updateTimeColIdentifier = Bytes.toBytes(ConfigFactory.getHbaseUpdateTimeColumnIdentifier());
     private static Logger LOG = LoggerFactory.getLogger(Mutation.class);
 
     protected MutatorClient mutatorClient;

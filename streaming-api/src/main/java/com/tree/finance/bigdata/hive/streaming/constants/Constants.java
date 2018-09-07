@@ -13,4 +13,10 @@ public interface Constants {
 
     String KEY_HBASE_INSERT_BATCH_SIZE = "hbase.insert.batch.size";
     String KEY_HBASE_TABLE_NAME = "hbase.table.name";
+    String KEY_HBASE_RECORD_ID_COL_IDENTIFIER = "hbase.record.id.column.identifier";
+    String KEY_HBASE_UPDATE_TIEM_COL_IDENTIFIER = "hbase.update.time.column.identifier";
+    String KEY_HBASE_DEFAULT_COLUMN_FAMILY = "hbase.default.column.family";
+    String KEY_HBASE_ZOOKEEPER_QUORUM = "hbase.zookeeper.quorum";
+    String KEY_HBASE_RECORDID_TBL = "hbase.record.id.table.name";
+    String KEY_HBASE_ZNODE_PARENT = "hbase.znode.parent";
 }

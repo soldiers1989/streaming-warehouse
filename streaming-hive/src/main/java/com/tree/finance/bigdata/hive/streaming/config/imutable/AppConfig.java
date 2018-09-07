@@ -41,7 +41,7 @@ public abstract class AppConfig {
     public abstract Integer getUpdateProcessorCores();
 
     //hbase config
-    @Config("hbase.rowId.recId.tbl")
+    /*@Config("hbase.rowId.recId.tbl")
     @Default("streaming_warehouse_rowId2recId_tbl")
     public abstract String getRowIdToRecIdHbaseTbl();
     @Config("hbase.default.col.family")
@@ -54,7 +54,7 @@ public abstract class AppConfig {
     public abstract String getHbaseZkQuorum();
     @Config("zookeeper.znode.parent")
     @Default("/hbase")
-    public abstract String getHbaseZkRoot();
+    public abstract String getHbaseZkRoot();*/
 
     //task retry config
     @Config("task.retries.on.data.delayed")

@@ -1,5 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.config.imutable;
 
+import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -27,9 +28,9 @@ public class ConfigHolder {
 
     private static Configuration initHbaseConfig() {
         Configuration conf = HBaseConfiguration.create();
-        conf.set("hbase.zookeeper.quorum", ConfigHolder.getConfig().getHbaseZkQuorum());
-        conf.set("zookeeper.znode.parent", ConfigHolder.getConfig().getHbaseZkRoot());
-        conf.set("hbase.table.name", ConfigHolder.getConfig().getRowIdToRecIdHbaseTbl());
+        conf.set("hbase.zookeeper.quorum", ConfigFactory.getHbaseZookeeperQuorum());
+        conf.set("zookeeper.znode.parent", ConfigFactory.getHbaseZnodeParent());
+        conf.set("hbase.table.name", ConfigFactory.getHbaseRecordIdTbl());
         return conf;
     }
 
