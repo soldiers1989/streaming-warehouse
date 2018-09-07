@@ -1,0 +1,2 @@
+create 'streaming_warehouse_system_conf', 'f'
+create 'streaming_warehouse_rowId2recId_tbl', 'f'

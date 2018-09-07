@@ -1,7 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.task.processor;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
-import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.RabbitMqTask;
@@ -69,7 +69,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
     private void handleByEach(ConsumedTask task) {
         InsertMutation mutationUtils = new InsertMutation(task.getTaskInfo().getDb(),
                 task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
-                task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigHolder.getHbaseConf());
+                task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
         try {
             long start = System.currentTimeMillis();
             LOG.info("single task start: {}", task.getTaskInfo().getFilePath());
@@ -108,7 +108,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
         while (!(moreTasks = getSameTask(task)).isEmpty()) {
             InsertMutation mutationUtils = new InsertMutation(task.getDb(),
                     task.getTbl(), task.getPartitionName(),
-                    task.getPartitions(), config.getMetastoreUris(), ConfigHolder.getHbaseConf());
+                    task.getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
             try {
                 LOG.info("going to process {} more tasks", moreTasks.size());
                 List<TaskInfo> processed = new ArrayList<>();
@@ -119,7 +119,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                         dbTaskStatusListener.onTaskSuccess(processed);
                         mutationUtils = new InsertMutation(task.getDb(),
                                 task.getTbl(), task.getPartitionName(),
-                                task.getPartitions(), config.getMetastoreUris(), ConfigHolder.getHbaseConf());
+                                task.getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
                         processed.clear();
                     }
                     try {
@@ -164,12 +164,12 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
         try (AvroFileReader reader = new AvroFileReader(new Path(task.getFilePath()))) {
             Schema recordSchema = reader.getSchema();
             if (!mutationUtils.txnStarted()) {
-                mutationUtils.beginTransaction(recordSchema);
+                mutationUtils.beginStreamTransaction(recordSchema);
             }
             Long bytes = fileSystem.getFileStatus(path).getLen();
             while (reader.hasNext()) {
                 GenericData.Record record = reader.next();
-                mutationUtils.insert(record, false);
+                mutationUtils.insert(record);
             }
             MetricReporter.insertedBytes(bytes);
         }

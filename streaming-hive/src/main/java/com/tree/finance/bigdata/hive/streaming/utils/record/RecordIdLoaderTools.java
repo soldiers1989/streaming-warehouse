@@ -174,7 +174,7 @@ public class RecordIdLoaderTools {
                 InputSplit[] inputSplits = inputFormat.getSplits(jobConf, 1);
                 AcidInputFormat.Options options = new AcidInputFormat.Options(conf);
 
-                HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(ConfigHolder.getHbaseConf());
+                HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(ConfigFactory.getHbaseRecordIdTbl(), ConfigFactory.getHbaseConf());
                 for (InputSplit inputSplit : inputSplits) {
                     AcidInputFormat.RowReader<OrcStruct> inner = inputFormat.getReader(inputSplit, options);
                     RecordIdentifier identifier = inner.createKey();

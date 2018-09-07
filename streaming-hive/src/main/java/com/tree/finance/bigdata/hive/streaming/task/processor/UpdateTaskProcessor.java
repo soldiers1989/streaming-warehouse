@@ -2,6 +2,7 @@ package com.tree.finance.bigdata.hive.streaming.task.processor;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
@@ -80,7 +81,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
         LOG.info("file task start: {}", task.getTaskInfo().getFilePath());
         UpdateMutation updateMutation = new UpdateMutation(task.getTaskInfo().getDb(), task.getTaskInfo().getTbl(),
                 task.getTaskInfo().getPartitionName(), task.getTaskInfo().getPartitions(),
-                config.getMetastoreUris(), ConfigHolder.getHbaseConf());
+                config.getMetastoreUris(), ConfigFactory.getHbaseConf());
         try {
             Path path = new Path(task.getTaskInfo().getFilePath());
             FileSystem fileSystem = FileSystem.get(new Configuration());
@@ -93,7 +94,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             Long bytes = fileSystem.getFileStatus(path).getLen();
             AvroFileReader reader = new AvroFileReader(path);
             Schema recordSchema = reader.getSchema();
-            updateMutation.beginTransaction(recordSchema);
+            updateMutation.beginStreamTransaction(recordSchema);
             while (reader.hasNext()) {
                 GenericData.Record record = reader.next();
                 updateMutation.update(record, false);
@@ -153,7 +154,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             LOG.info("file task start: {}", task.getFilePath());
             UpdateMutation updateMutation = new UpdateMutation(task.getDb(), task.getTbl(),
                     task.getPartitionName(), task.getPartitions(),
-                    config.getMetastoreUris(), ConfigHolder.getHbaseConf());
+                    config.getMetastoreUris(), ConfigFactory.getHbaseConf());
             try {
                 Path path = new Path(task.getFilePath());
                 FileSystem fileSystem = FileSystem.get(new Configuration());
@@ -165,7 +166,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 Long bytes = fileSystem.getFileStatus(path).getLen();
                 AvroFileReader reader = new AvroFileReader(path);
                 Schema recordSchema = reader.getSchema();
-                updateMutation.beginTransaction(recordSchema);
+                updateMutation.beginStreamTransaction(recordSchema);
                 while (reader.hasNext()) {
                     GenericData.Record record = reader.next();
                     updateMutation.update(record, false);

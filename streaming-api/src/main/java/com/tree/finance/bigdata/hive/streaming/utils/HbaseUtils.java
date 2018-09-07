@@ -45,8 +45,7 @@ public class HbaseUtils {
         this.htable = connection.getTable(TableName.valueOf(tableName));
     }
 
-    public static HbaseUtils getTableInstance(Configuration conf) throws IOException {
-        String tableName = conf.get(KEY_HBASE_TABLE_NAME);
+    public static HbaseUtils getTableInstance(String tableName, Configuration conf) throws IOException {
         if (StringUtils.isEmpty(tableName)) {
             throw new RuntimeException(KEY_HBASE_TABLE_NAME + " is not set");
         }
@@ -100,6 +99,10 @@ public class HbaseUtils {
             buffer.clear();
         }
         buffer.add(put);
+    }
+
+    public void put(Put put) throws IOException {
+        htable.put(put);
     }
 
     public void close() throws IOException {

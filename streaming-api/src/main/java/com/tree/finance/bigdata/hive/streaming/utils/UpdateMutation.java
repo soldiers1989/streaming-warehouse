@@ -1,5 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
+import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
 import com.tree.finance.bigdata.task.Operation;
@@ -41,7 +42,7 @@ public class UpdateMutation extends Mutation {
     public void update(GenericData.Record record, boolean ignoreNotExist) throws Exception {
 
         if (this.hbaseUtils == null) {
-            this.hbaseUtils = HbaseUtils.getTableInstance(hbaseConf);
+            this.hbaseUtils = HbaseUtils.getTableInstance(ConfigFactory.getHbaseRecordIdTbl(), hbaseConf);
         }
         GenericData.Record keyRecord = (GenericData.Record) record.get(FIELD_KEY);
         String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(FIELD_KEY).schema());
@@ -78,7 +79,7 @@ public class UpdateMutation extends Mutation {
     }
 
     @Override
-    public void beginTransaction(Schema schema) {
+    public void beginStreamTransaction(Schema schema) {
         this.recordSchema = schema;
 
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
@@ -91,6 +92,7 @@ public class UpdateMutation extends Mutation {
 
     @Override
     public void commitTransaction() throws Exception {
+        // update should always check exist
         super.beginTransaction(recordSchema);
         for (Map.Entry<String, GenericData.Record> entry : recordIdsortedRecord.entrySet()) {
             GenericData.Record record = entry.getValue();
@@ -104,6 +106,12 @@ public class UpdateMutation extends Mutation {
             }
 
             Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, record);
+            if (null == latestUpdateTime) {
+                this.latestUpdateTime = recordUpdateTime;
+            }else if (this.latestUpdateTime < recordUpdateTime) {
+                this.latestUpdateTime = recordUpdateTime;
+            }
+
             Put put = new Put(Bytes.toBytes(recordIdToBuziId.get(entry.getKey())));
 
             if (null != recordUpdateTime) {

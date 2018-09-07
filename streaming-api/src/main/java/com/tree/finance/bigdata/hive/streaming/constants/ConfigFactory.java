@@ -1,6 +1,8 @@
 package com.tree.finance.bigdata.hive.streaming.constants;
 
 import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +21,8 @@ public class ConfigFactory {
 
     private static Logger LOG = LoggerFactory.getLogger(ConfigFactory.class);
 
+    private static Configuration hbaseConf = initHbaseConfig();
+
     private static Properties loadProperties() {
         try {
             Properties prop = new Properties();
@@ -28,6 +32,22 @@ public class ConfigFactory {
             LOG.error("", e);
             throw new RuntimeException(e);
         }
+    }
+
+    private static Configuration initHbaseConfig() {
+        Configuration conf = HBaseConfiguration.create();
+        conf.set("hbase.zookeeper.quorum", ConfigFactory.getHbaseZookeeperQuorum());
+        conf.set("zookeeper.znode.parent", ConfigFactory.getHbaseZnodeParent());
+        return conf;
+    }
+
+    private static String getHbaseZnodeParent() {
+        return properties.contains(Constants.KEY_HBASE_ZNODE_PARENT) ?
+                properties.getProperty(Constants.KEY_HBASE_ZNODE_PARENT) : "/hbase";
+    }
+
+    public static Configuration getHbaseConf() {
+        return hbaseConf;
     }
 
     public static Properties getConfig() {
@@ -56,8 +76,17 @@ public class ConfigFactory {
         return properties.getProperty(Constants.KEY_HBASE_RECORDID_TBL);
     }
 
-    public static String getHbaseZnodeParent() {
-        return properties.contains(Constants.KEY_HBASE_ZNODE_PARENT) ?
-        properties.getProperty(Constants.KEY_HBASE_ZNODE_PARENT) : "/hbase";
+    public static String getSysConfHbaseTbl() {
+        return properties.contains(Constants.KEY_HBASE_SYS_CONF_TBL) ?
+        properties.getProperty(Constants.KEY_HBASE_SYS_CONF_TBL) : "streaming_warehouse_system_conf";
     }
+    public static String getStreamUpdateTimeQualifier() {
+        return properties.contains(Constants.KEY_HBASE_STREAM_UPDATE_TIME_COL) ?
+                properties.getProperty(Constants.KEY_HBASE_STREAM_UPDATE_TIME_COL) : "stream_update_time";
+    }
+    public static String getFixUpdateTimeQualifier() {
+        return properties.contains(Constants.KEY_HBASE_FIX_UPDATE_TIME_COL) ?
+                properties.getProperty(Constants.KEY_HBASE_FIX_UPDATE_TIME_COL) : "fix_update_time";
+    }
+
 }

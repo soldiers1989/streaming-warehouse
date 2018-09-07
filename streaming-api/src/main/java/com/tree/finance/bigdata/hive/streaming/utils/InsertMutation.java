@@ -20,10 +20,19 @@ public class InsertMutation extends Mutation{
         super(db, table, partition, partitions, metastoreUris, hbaseConf);
     }
 
-    public void insert(GenericData.Record record, boolean checkExist) throws Exception {
+    public void insert(GenericData.Record record) throws Exception {
         Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(this.updateCol, record);
         GenericData.Record keyRecord = (GenericData.Record) record.get(SchemaConstants.FIELD_KEY);
         String recordId = transactionId + "_" + BUCKET_ID + "_" + (rowId++);
+
+        //record latest update_time of streaming data
+        if (latestUpdateTime == null) {
+            this.latestUpdateTime = recordUpdateTime;
+        }else {
+            if (latestUpdateTime < recordUpdateTime) {
+                this.latestUpdateTime = recordUpdateTime;
+            }
+        }
 
         if (checkExist) {
             Long hbaseUpdateTime = hbaseUtils.getLong(recordId, columnFamily, updateTimeColIdentifier);

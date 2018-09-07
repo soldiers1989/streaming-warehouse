@@ -62,30 +62,7 @@ public class MqTaskStatusListener implements TaskStatusListener<RabbitMqTask> {
 
     @Override
     public void onTaskRetry(RabbitMqTask rabbitMqTask) {
-        try {
-
-            TaskInfo taskInfo = rabbitMqTask.getTaskInfo();
-            Integer maxRetries = config.getTaskRetriesOnError();
-            Integer retry = taskInfo.getRetryCount();
-            if (retry >= maxRetries) {
-                LOG.info("exceed max retry : {}", taskInfo);
-                onTaskError(rabbitMqTask);
-            } else {
-                RabbitMqUtils rabbitMqUtils = RabbitMqUtils.getInstance(config.getRabbitHost(), config.getRabbitPort());
-                //update attempt info and send to task queue, to retry it
-                taskInfo.setRetryCount(++retry);
-                taskInfo.setLastUpdateTime(System.currentTimeMillis());
-                rabbitMqUtils.produce(ConfigHolder.getConfig().getRabbitDelayQueueName(),
-                        JSON.toJSONString(taskInfo));
-                LOG.info("retry task was sent to task queue: {}", taskInfo);
-                //delete previous task info
-                rabbitMqTask.getChannelMsg().getChannel().basicAck(rabbitMqTask.getChannelMsg().getMsg().getEnvelope().getDeliveryTag(),
-                        false);
-                LOG.info("delete previous task info");
-            }
-        } catch (Exception e) {
-            LOG.error("may cause data inaccuracy", e);
-        }
+        //no opot
     }
 
     @Override
@@ -97,8 +74,6 @@ public class MqTaskStatusListener implements TaskStatusListener<RabbitMqTask> {
 
     @Override
     public void onTaskRetry(List<RabbitMqTask> tasks) {
-        for (RabbitMqTask task : tasks) {
-            onTaskRetry(task);
-        }
+        // no pot
     }
 }

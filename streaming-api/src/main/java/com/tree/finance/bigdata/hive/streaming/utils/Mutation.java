@@ -1,6 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
+import com.tree.finance.bigdata.hive.streaming.constants.DynamicConfig;
 import com.tree.finance.bigdata.hive.streaming.mutation.AvroMutationFactory;
 import com.tree.finance.bigdata.hive.streaming.mutation.HiveLockFailureListener;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.AvroObjectInspector;
@@ -17,7 +18,6 @@ import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorCoordinatorBuilde
 import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.security.krb5.Config;
 
 import java.util.List;
 
@@ -65,6 +65,12 @@ public abstract class Mutation {
 
     protected String updateCol;
 
+    protected boolean checkExist;
+
+    protected DynamicConfig dynamicConfig;
+
+    protected Long latestUpdateTime;
+
     protected Mutation(String db, String table, String partition, List<String> partitions, String metastoreUris,
                        Configuration hbaseConf) {
         this.metastoreUris = metastoreUris;
@@ -89,6 +95,16 @@ public abstract class Mutation {
         mutateCoordinator.close();
         mutateTransaction.commit();
         closeClientQueitely();
+
+        if (null != latestUpdateTime) {
+            try {
+                dynamicConfig.setStreamUpdateTime(db, table, partition, latestUpdateTime);
+                dynamicConfig.setStreamUpdateTime(db, table, latestUpdateTime);
+            } catch (Throwable e) {
+                LOG.warn("error update fix update_time table, may cause program efficiency problem when fixing data.", e);
+            }
+        }
+
     }
 
     private void closeMutatorQuietly() {
@@ -102,7 +118,7 @@ public abstract class Mutation {
     }
 
     public void abortTxn() {
-        if (!txnStarted()){
+        if (!txnStarted()) {
             return;
         }
         closeMutatorQuietly();
@@ -137,15 +153,12 @@ public abstract class Mutation {
         }
     }
 
-    public void beginTransaction(Schema schema) throws Exception {
-
+    protected void beginTransaction(Schema schema) throws Exception {
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
-
-        if (StringUtils.isEmpty(updateCol)){
+        if (StringUtils.isEmpty(updateCol)) {
             LOG.error("update column not found for table: {}, schema: {}", db + "." + table, schema);
             throw new RuntimeException("update column not found");
         }
-
         this.recordSchema = schema;
         this.factory = new AvroMutationFactory(new Configuration(), new AvroObjectInspector(db,
                 table, schema, hbaseUtils));
@@ -165,9 +178,38 @@ public abstract class Mutation {
                 .build();
         this.transactionId = mutateTransaction.getTransactionId();
         if (null == this.hbaseUtils) {
-            this.hbaseUtils = HbaseUtils.getTableInstance(hbaseConf);
+            this.hbaseUtils = HbaseUtils.getTableInstance(ConfigFactory.getHbaseRecordIdTbl(), hbaseConf);
         }
         this.initialized = true;
+    }
+
+    public void beginStreamTransaction(Schema schema) throws Exception {
+        beginTransaction(schema);
+        this.dynamicConfig = new DynamicConfig();
+        Long fixUpdateTime = dynamicConfig.getFixUpdateTime(db, table, partition);
+        this.latestUpdateTime = dynamicConfig.getStreamUpdateTime(db, table, partition);
+        Long tableUpdateTime = dynamicConfig.getTableUpdateTime(db, table);
+        //table update time not set, means first insert
+        if (null == tableUpdateTime) {
+            LOG.info("table update time is null, may be first time, should check update time when insert");
+            this.checkExist = true;
+            return;
+        }
+        if (null != fixUpdateTime) {
+            if (this.latestUpdateTime == null || this.latestUpdateTime <= fixUpdateTime) {
+                LOG.info("check update time when insert, stream_update_time: {}, fix_update_time: {}", latestUpdateTime, fixUpdateTime);
+                this.checkExist = true;
+            }
+        } else {
+            //fix update time not set, means no data fix
+            this.checkExist = false;
+            dynamicConfig.getHbaseUtils().close();
+        }
+    }
+
+    public void beginFixTransaction(Schema schema) throws Exception {
+        beginTransaction(schema);
+        this.checkExist = true;
     }
 
 }
