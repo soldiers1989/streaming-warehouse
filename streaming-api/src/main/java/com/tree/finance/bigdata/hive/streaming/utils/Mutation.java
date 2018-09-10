@@ -98,12 +98,13 @@ public abstract class Mutation {
 
         if (null != latestUpdateTime) {
             try {
-                dynamicConfig.setStreamPartitionUpdateTime(db, table, partition, latestUpdateTime);
-                dynamicConfig.setStreamTableUpdateTime(db, table, latestUpdateTime);
+                dynamicConfig.setStreamPartitionUpdateTime(db, table, partition, Long.toString(latestUpdateTime));
+                dynamicConfig.setStreamTableUpdateTime(db, table, Long.toString(latestUpdateTime));
             } catch (Throwable e) {
                 LOG.warn("error update fix update_time table, may cause program efficiency problem when fixing data.", e);
             }
         }
+        closeDynamicConfigQuietely();
 
     }
 
@@ -131,6 +132,17 @@ public abstract class Mutation {
         }
         closeHbaseUtilQuietly();
         closeClientQueitely();
+        closeDynamicConfigQuietely();
+    }
+
+    protected void closeDynamicConfigQuietely() {
+        try {
+            if (null != dynamicConfig && null != dynamicConfig.getHbaseUtils()){
+                dynamicConfig.getHbaseUtils().close();
+            }
+        } catch (Exception e) {
+            //no opt
+        }
     }
 
     private void closeHbaseUtilQuietly() {

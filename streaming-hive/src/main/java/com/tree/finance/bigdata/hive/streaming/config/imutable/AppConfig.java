@@ -64,6 +64,9 @@ public abstract class AppConfig {
     @Config("task.greedy.process.batch.limit")
     @Default("10")
     public abstract int getGreedyProcessBatchLimit();
+    @Config("database.task.info.on.success.strategy")
+    @Default("delete")
+    public abstract String getDBTaskInfoStrategyOnSuccess();
 
     //task database config
     @Config("task.db.url")

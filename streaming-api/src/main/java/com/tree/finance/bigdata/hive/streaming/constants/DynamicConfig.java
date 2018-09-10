@@ -27,13 +27,13 @@ public class DynamicConfig {
     }
 
     //update stream_update_time
-    public void setStreamPartitionUpdateTime (String db, String table, String partitionName, Long updateTime) throws IOException {
+    public void setStreamPartitionUpdateTime (String db, String table, String partitionName, String updateTime) throws IOException {
         String rowKey = assembleRowKey(db, table, partitionName);
         Put put = new Put(Bytes.toBytes(rowKey));
         put.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(updateTime));
         hbaseUtils.put(put);
     }
-    public void setStreamTableUpdateTime(String db, String table, Long latestUpdateTime) throws IOException{
+    public void setStreamTableUpdateTime(String db, String table, String latestUpdateTime) throws IOException{
         String rowKey = db + "_" + table;
         Put put = new Put(Bytes.toBytes(rowKey));
         put.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(latestUpdateTime));
@@ -43,11 +43,11 @@ public class DynamicConfig {
 
     public Long[] getPartitionUpdateTimes (String db, String table, String partitionName) {
         String rowKey = assembleRowKey(db, table, partitionName);
-        return hbaseUtils.getLongs(rowKey, colFamily, streamUpdateTime, fixUpdateTime);
+        return hbaseUtils.getStringsAsLongs(rowKey, colFamily, streamUpdateTime, fixUpdateTime);
     }
     public Long[] getTableUpdateTimes (String db, String table) {
         String rowKey = db + "_" + table;
-        return hbaseUtils.getLongs(rowKey, colFamily, streamUpdateTime, fixUpdateTime);
+        return hbaseUtils.getStringsAsLongs(rowKey, colFamily, streamUpdateTime, fixUpdateTime);
     }
 
 

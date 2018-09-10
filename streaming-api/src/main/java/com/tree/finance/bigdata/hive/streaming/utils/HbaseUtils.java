@@ -83,7 +83,7 @@ public class HbaseUtils {
             throw new RuntimeException(e);
         }
     }
-    public Long[] getLongs(String rowKey, byte[] family, byte[] ... cols) {
+    public Long[] getStringsAsLongs(String rowKey, byte[] family, byte[] ... cols) {
         try {
             Get getVal = new Get(Bytes.toBytes(rowKey));
             Result result = htable.get(getVal);
@@ -93,7 +93,7 @@ public class HbaseUtils {
                 if (value == null) {
                     continue;
                 } else {
-                    values[i] = Bytes.toLong(value);
+                    values[i] = Long.valueOf(Bytes.toString(value));
                 }
             }
             return values;
@@ -114,7 +114,7 @@ public class HbaseUtils {
 
     public void insertAsync(Put put) throws IOException {
         if (buffer.size() >= batchSize) {
-            htable.put(put);
+            htable.put(buffer);
             buffer.clear();
         }
         buffer.add(put);

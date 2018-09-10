@@ -34,6 +34,8 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_CONF_FILE;
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_PASSWORD;
@@ -64,6 +66,9 @@ public class RecordIdLoaderTools {
     private static String CONJECT = "_";
     private Logger LOG = LoggerFactory.getLogger(RecordIdLoaderTools.class);
 
+    private AtomicInteger finishedTasks = new AtomicInteger(0);
+    private AtomicLong finishedRecords = new AtomicLong(0);
+
     public RecordIdLoaderTools(String db, String table, int cores) {
         this.cores = cores;
         this.db = db;
@@ -83,13 +88,14 @@ public class RecordIdLoaderTools {
         Iterator<Partition> iterator = proxy.getPartitionIterator();
         int totalPartitions = 0;
         while (iterator.hasNext()) {
-            totalPartitions ++;
+            totalPartitions++;
             executor.submit(new LoadTask(iterator.next().getSd().getLocation()));
         }
         iMetaStoreClient.close();
         System.out.println("total partitions: " + totalPartitions);
         executor.shutdown();
-        while (! executor.isTerminated()) {
+        while (!executor.isTerminated()) {
+            LOG.info("wait tasks to be finished ...");
             executor.awaitTermination(5, TimeUnit.SECONDS);
         }
         System.out.println("finished loading");
@@ -117,7 +123,7 @@ public class RecordIdLoaderTools {
 
         this.primaryKeyIndex = getPrimaryKeyIndexs(mysqlUrl, user, password);
         this.updateTimeIndex = getUpdateTimeIndex();
-        if (CollectionUtils.isEmpty(primaryKeyIndex)){
+        if (CollectionUtils.isEmpty(primaryKeyIndex)) {
             throw new RuntimeException("primary key not found for table: " + db + "." + table);
         }
         LOG.info("primary key index: {}, update time col: {}", Arrays.toString(primaryKeyIndex.toArray()), updateTimeIndex);
@@ -131,12 +137,12 @@ public class RecordIdLoaderTools {
         return columnList.indexOf(updateTimeCol);
     }
 
-    public List<Integer> getPrimaryKeyIndexs(String mysqlUrl, String user, String password) throws Exception{
+    public List<Integer> getPrimaryKeyIndexs(String mysqlUrl, String user, String password) throws Exception {
         List<Integer> keyIndexes = new ArrayList<>();
         Class.forName(HiveDriver.class.getName());
         //to lower case, and sort by alphabetic order
         TreeSet<String> primaryKeys = new TreeSet<>();
-        try (Connection connection = DriverManager.getConnection(mysqlUrl, user , password);
+        try (Connection connection = DriverManager.getConnection(mysqlUrl, user, password);
              ResultSet resultSet = connection.getMetaData().getPrimaryKeys(null, null, table)
         ) {
             while (resultSet.next()) {
@@ -144,7 +150,7 @@ public class RecordIdLoaderTools {
             }
         }
         for (String pk : primaryKeys) {
-            for (int i = 0; i < columnList.size(); i ++){
+            for (int i = 0; i < columnList.size(); i++) {
                 if (columnList.get(i).equalsIgnoreCase(pk)) {
                     keyIndexes.add(i);
                 }
@@ -193,15 +199,19 @@ public class RecordIdLoaderTools {
                         for (Integer keyIndex : primaryKeyIndex) {
                             businessIdSb.append(value.getFieldValue(keyIndex)).append(CONJECT);
                         }
-                        String rowKey = businessIdSb.deleteCharAt(businessIdSb.length()-1).toString();
+                        String rowKey = businessIdSb.deleteCharAt(businessIdSb.length() - 1).toString();
+
                         Long updateTime = RecordUtils.getFieldAsTimeMillis(value.getFieldValue(updateTimeIndex));
                         Put put = new Put(Bytes.toBytes(rowKey));
                         put.addColumn(columnFamily, recordIdentifier, Bytes.toBytes(idSb.toString()));
                         put.addColumn(columnFamily, updateTimeIdentifier, Bytes.toBytes(updateTime));
                         hbaseUtils.insertAsync(put);
+                        finishedRecords.incrementAndGet();
                     }
                 }
                 hbaseUtils.close();
+                System.out.println("finished task " + finishedTasks.incrementAndGet()
+                        + ", finished records " + finishedRecords.get());
             } catch (Exception e) {
                 LOG.error("", e);
                 System.out.println("failed to load: " + path);
@@ -210,7 +220,7 @@ public class RecordIdLoaderTools {
         }
     }
 
-    public static void main(String[] args) throws Exception{
+    public static void main(String[] args) throws Exception {
         new RecordIdLoaderTools("customer_service", "cs_queue_common", 1).load();
     }
 

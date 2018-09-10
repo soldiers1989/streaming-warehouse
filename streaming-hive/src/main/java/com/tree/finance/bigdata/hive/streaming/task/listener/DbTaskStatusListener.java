@@ -4,6 +4,7 @@ import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.task.TaskInfo;
 import com.tree.finance.bigdata.task.TaskStatus;
 import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
+import org.apache.hadoop.hdfs.DFSClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,8 +25,11 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
 
     private Logger LOG = LoggerFactory.getLogger(DbTaskStatusListener.class);
 
+    private SuccessStrategy successStrategy;
+
     public DbTaskStatusListener(ConnectionFactory factory) {
         this.factory = factory;
+        this.successStrategy = SuccessStrategy.valueOf(ConfigHolder.getConfig().getDBTaskInfoStrategyOnSuccess());
     }
 
     @Override
@@ -33,12 +37,21 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
         TaskStatusListener.doWithTaskFile(taskInfo.getFilePath());
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {
-            StringBuilder sb = new StringBuilder("update ")
-                    .append(ConfigHolder.getConfig().getTaskTleName())
-                    .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.SUCCESS).append(SQL_VALUE_QUOTE)
-                    .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
-            TaskStatusListener.doWithTaskFile(taskInfo.getFilePath());
-            stmt.executeUpdate(sb.toString());
+
+            if (SuccessStrategy.delete.equals(successStrategy)) {
+                StringBuilder sb = new StringBuilder("delete from ")
+                        .append(ConfigHolder.getConfig().getTaskTleName())
+                        .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
+                stmt.execute(sb.toString());
+            } else if (SuccessStrategy.update.equals(successStrategy)) {
+                StringBuilder sb = new StringBuilder("update ")
+                        .append(ConfigHolder.getConfig().getTaskTleName())
+                        .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.SUCCESS).append(SQL_VALUE_QUOTE)
+                        .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
+                TaskStatusListener.doWithTaskFile(taskInfo.getFilePath());
+                stmt.executeUpdate(sb.toString());
+            }
+
         } catch (Exception e) {
             LOG.error("may cause data inaccuracy", e);
         }
@@ -109,6 +122,16 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
     @Override
     public void onTaskRetry(List<TaskInfo> tasks) {
         //will not retry
+    }
+
+    enum SuccessStrategy {
+        delete("delete"),
+        update("update");
+        private String value;
+
+        SuccessStrategy(String value) {
+            this.value = value;
+        }
     }
 
 }

@@ -81,7 +81,7 @@ public class UpdateMutation extends Mutation {
     @Override
     public void beginStreamTransaction(Schema schema) {
         this.recordSchema = schema;
-
+        this.checkExist = true;
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
 
         if (StringUtils.isEmpty(updateCol)){
