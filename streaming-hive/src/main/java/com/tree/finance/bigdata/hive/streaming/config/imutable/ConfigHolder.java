@@ -1,6 +1,8 @@
 package com.tree.finance.bigdata.hive.streaming.config.imutable;
 
 import com.tree.finance.bigdata.utils.common.StringUtils;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hive.hcatalog.streaming.mutate.client.MutatorClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +23,14 @@ public class ConfigHolder {
 
     private static AppConfig config = initAppConfig();
 
+    private static HiveConf hiveConf = initHiveConf();
+
+    private static HiveConf initHiveConf() {
+        HiveConf conf = new HiveConf();
+        conf.setInt(MutatorClient.TRANSACTIONAL_LOCK_RETIES_KEY, 1);
+        return conf;
+    }
+
     private static AppConfig initAppConfig() {
         try {
             Properties properties = new Properties();
@@ -35,6 +45,10 @@ public class ConfigHolder {
             LOG.error("error loading app config", e);
             throw new RuntimeException(e);
         }
+    }
+
+    public static HiveConf getHiveConf() {
+        return hiveConf;
     }
 
     public static AppConfig getConfig() {

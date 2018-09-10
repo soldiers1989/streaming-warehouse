@@ -9,6 +9,7 @@ import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hive.hcatalog.streaming.mutate.client.AcidTable;
 import org.apache.hive.hcatalog.streaming.mutate.client.MutatorClient;
 import org.apache.hive.hcatalog.streaming.mutate.client.MutatorClientBuilder;
@@ -165,7 +166,7 @@ public abstract class Mutation {
         }
     }
 
-    protected void beginTransaction(Schema schema) throws Exception {
+    protected void beginTransaction(Schema schema, HiveConf conf) throws Exception {
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
         if (StringUtils.isEmpty(updateCol)) {
             LOG.error("update column not found for table: {}, schema: {}", db + "." + table, schema);
@@ -175,6 +176,7 @@ public abstract class Mutation {
         this.factory = new AvroMutationFactory(new Configuration(), new AvroObjectInspector(db,
                 table, schema, hbaseUtils));
         this.mutatorClient = new MutatorClientBuilder()
+                .configuration(conf)
                 .lockFailureListener(new HiveLockFailureListener())
                 .addSinkTable(db, table, partition, true)
                 .metaStoreUri(metastoreUris)
@@ -195,8 +197,8 @@ public abstract class Mutation {
         this.initialized = true;
     }
 
-    public void beginStreamTransaction(Schema schema) throws Exception {
-        beginTransaction(schema);
+    public void beginStreamTransaction(Schema schema, HiveConf conf) throws Exception {
+        beginTransaction(schema, conf);
         this.dynamicConfig = new DynamicConfig();
 
         Long[] streamAndFixParTime = dynamicConfig.getPartitionUpdateTimes(db, table, partition);
@@ -229,8 +231,8 @@ public abstract class Mutation {
         return;
     }
 
-    public void beginFixTransaction(Schema schema) throws Exception {
-        beginTransaction(schema);
+    public void beginFixTransaction(Schema schema, HiveConf conf) throws Exception {
+        beginTransaction(schema, conf);
         this.checkExist = true;
     }
 

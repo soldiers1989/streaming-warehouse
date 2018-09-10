@@ -12,6 +12,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +31,8 @@ import static com.tree.finance.bigdata.schema.SchemaConstants.FIELD_KEY;
 public class UpdateMutation extends Mutation {
 
     private static Logger LOG = LoggerFactory.getLogger(UpdateMutation.class);
+
+    private HiveConf conf;
 
     TreeMap<String, GenericData.Record> recordIdsortedRecord = new TreeMap<>(Comparator.reverseOrder());
     Object2ObjectOpenHashMap<String, String> recordIdToBuziId = new Object2ObjectOpenHashMap();
@@ -79,7 +82,7 @@ public class UpdateMutation extends Mutation {
     }
 
     @Override
-    public void beginStreamTransaction(Schema schema) {
+    public void beginStreamTransaction(Schema schema, HiveConf hiveConf) {
         this.recordSchema = schema;
         this.checkExist = true;
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
@@ -93,7 +96,7 @@ public class UpdateMutation extends Mutation {
     @Override
     public void commitTransaction() throws Exception {
         // update should always check exist
-        super.beginTransaction(recordSchema);
+        super.beginTransaction(recordSchema, this.conf);
         for (Map.Entry<String, GenericData.Record> entry : recordIdsortedRecord.entrySet()) {
             GenericData.Record record = entry.getValue();
             if (record == null) {

@@ -1,6 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.task.processor;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
@@ -164,7 +165,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
         try (AvroFileReader reader = new AvroFileReader(new Path(task.getFilePath()))) {
             Schema recordSchema = reader.getSchema();
             if (!mutationUtils.txnStarted()) {
-                mutationUtils.beginStreamTransaction(recordSchema);
+                mutationUtils.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
             }
             Long bytes = fileSystem.getFileStatus(path).getLen();
             while (reader.hasNext()) {
