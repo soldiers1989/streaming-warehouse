@@ -83,6 +83,25 @@ public class HbaseUtils {
             throw new RuntimeException(e);
         }
     }
+    public Long[] getLongs(String rowKey, byte[] family, byte[] ... cols) {
+        try {
+            Get getVal = new Get(Bytes.toBytes(rowKey));
+            Result result = htable.get(getVal);
+            Long[] values = new Long[cols.length];
+            for (int i=0; i < cols.length ; i ++) {
+                byte[] value = result.getValue(family, cols[i]);
+                if (value == null) {
+                    continue;
+                } else {
+                    values[i] = Bytes.toLong(value);
+                }
+            }
+            return values;
+        } catch (Exception e) {
+            LOG.error("failed to get rowId from HBase rowKey: {}\n{}" + rowKey, e);
+            throw new RuntimeException(e);
+        }
+    }
 
     public static void createTale(String tableName, String... clomnFamily) throws Exception {
         HTableDescriptor table = new HTableDescriptor(TableName.valueOf(tableName));

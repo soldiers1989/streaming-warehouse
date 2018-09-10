@@ -26,38 +26,36 @@ public class DynamicConfig {
         }
     }
 
-    public void setStreamUpdateTime (String db, String table, String partitionName, Long updateTime) throws IOException {
+    //update stream_update_time
+    public void setStreamPartitionUpdateTime (String db, String table, String partitionName, Long updateTime) throws IOException {
         String rowKey = assembleRowKey(db, table, partitionName);
         Put put = new Put(Bytes.toBytes(rowKey));
         put.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(updateTime));
         hbaseUtils.put(put);
     }
-    public Long getFixUpdateTime (String db, String table, String partitionName) {
-        String rowKey = assembleRowKey(db, table, partitionName);
-        return hbaseUtils.getLong(rowKey, colFamily, fixUpdateTime);
-    }
-    public Long getTableUpdateTime (String db, String table) {
-        String rowKey = db + "_" + table;
-        return hbaseUtils.getLong(rowKey, colFamily, streamUpdateTime);
-    }
-
-    public Long getStreamUpdateTime (String db, String table, String partitionName) {
-        String rowKey = assembleRowKey(db, table, partitionName);
-        return hbaseUtils.getLong(rowKey, colFamily, streamUpdateTime);
-    }
-
-    private String assembleRowKey(String db, String table, String partitionName) {
-        return db + "_" + table + "_" + partitionName;
-    }
-
-    public HbaseUtils getHbaseUtils() {
-        return hbaseUtils;
-    }
-
-    public void setStreamUpdateTime(String db, String table, Long latestUpdateTime) throws IOException{
+    public void setStreamTableUpdateTime(String db, String table, Long latestUpdateTime) throws IOException{
         String rowKey = db + "_" + table;
         Put put = new Put(Bytes.toBytes(rowKey));
         put.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(latestUpdateTime));
         hbaseUtils.put(put);
     }
+
+
+    public Long[] getPartitionUpdateTimes (String db, String table, String partitionName) {
+        String rowKey = assembleRowKey(db, table, partitionName);
+        return hbaseUtils.getLongs(rowKey, colFamily, streamUpdateTime, fixUpdateTime);
+    }
+    public Long[] getTableUpdateTimes (String db, String table) {
+        String rowKey = db + "_" + table;
+        return hbaseUtils.getLongs(rowKey, colFamily, streamUpdateTime, fixUpdateTime);
+    }
+
+
+    private String assembleRowKey(String db, String table, String partitionName) {
+        return db + "_" + table + "_" + partitionName;
+    }
+    public HbaseUtils getHbaseUtils() {
+        return hbaseUtils;
+    }
+
 }

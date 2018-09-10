@@ -52,7 +52,8 @@ public abstract class TaskProcessor {
                 .append("table_name =").append(SQL_VALUE_QUOTE).append(taskInfo.getTbl()).append(SQL_VALUE_QUOTE).append("and ")
                 .append("partition_name =").append(SQL_VALUE_QUOTE).append(taskInfo.getPartitionName()).append(SQL_VALUE_QUOTE).append("and ")
                 .append("op =").append(SQL_VALUE_QUOTE).append(taskInfo.getOp().code()).append(SQL_VALUE_QUOTE).append("and ")
-                .append(" status=").append(SQL_VALUE_QUOTE).append(TaskStatus.NEW).append(SQL_VALUE_QUOTE)
+                .append("( status=").append(SQL_VALUE_QUOTE).append(TaskStatus.NEW).append(SQL_VALUE_QUOTE)
+                .append(" or status=").append(SQL_VALUE_QUOTE).append(TaskStatus.DELAY).append(SQL_VALUE_QUOTE).append(")")
                 .append(" order by id asc");
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement();

@@ -98,8 +98,8 @@ public abstract class Mutation {
 
         if (null != latestUpdateTime) {
             try {
-                dynamicConfig.setStreamUpdateTime(db, table, partition, latestUpdateTime);
-                dynamicConfig.setStreamUpdateTime(db, table, latestUpdateTime);
+                dynamicConfig.setStreamPartitionUpdateTime(db, table, partition, latestUpdateTime);
+                dynamicConfig.setStreamTableUpdateTime(db, table, latestUpdateTime);
             } catch (Throwable e) {
                 LOG.warn("error update fix update_time table, may cause program efficiency problem when fixing data.", e);
             }
@@ -186,25 +186,35 @@ public abstract class Mutation {
     public void beginStreamTransaction(Schema schema) throws Exception {
         beginTransaction(schema);
         this.dynamicConfig = new DynamicConfig();
-        Long fixUpdateTime = dynamicConfig.getFixUpdateTime(db, table, partition);
-        this.latestUpdateTime = dynamicConfig.getStreamUpdateTime(db, table, partition);
-        Long tableUpdateTime = dynamicConfig.getTableUpdateTime(db, table);
-        //table update time not set, means first insert
-        if (null == tableUpdateTime) {
+
+        Long[] streamAndFixParTime = dynamicConfig.getPartitionUpdateTimes(db, table, partition);
+        Long[] streamAndFixTblTime = dynamicConfig.getTableUpdateTimes(db, table);
+
+
+        //stream table global update time not set, means first insert, should check
+        if (null == streamAndFixTblTime[0]) {
             LOG.info("table update time is null, may be first time, should check update time when insert");
             this.checkExist = true;
             return;
         }
-        if (null != fixUpdateTime) {
-            if (this.latestUpdateTime == null || this.latestUpdateTime <= fixUpdateTime) {
-                LOG.info("check update time when insert, stream_update_time: {}, fix_update_time: {}", latestUpdateTime, fixUpdateTime);
-                this.checkExist = true;
-            }
-        } else {
-            //fix update time not set, means no data fix
-            this.checkExist = false;
-            dynamicConfig.getHbaseUtils().close();
+        //streaming program's global update time, earlier than fix global update time, should check
+        if (null != streamAndFixTblTime[1] && streamAndFixTblTime[1] > streamAndFixTblTime[0]) {
+            LOG.info("check update time when insert,  global stream_update_time: {}, global fix_update_time: {}",
+                    streamAndFixTblTime[0], streamAndFixTblTime[1]);
+            this.checkExist = true;
+            return;
         }
+
+        //if fix program fix at partition level
+        if (streamAndFixParTime[1] != null) {
+            if (null == streamAndFixParTime[0] || streamAndFixParTime[0]
+                    < streamAndFixParTime[1]) {
+                this.checkExist = true;
+                return;
+            }
+        }
+        this.checkExist = false;
+        return;
     }
 
     public void beginFixTransaction(Schema schema) throws Exception {
