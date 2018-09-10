@@ -46,13 +46,13 @@ public class DynamicConfig {
         return hbaseUtils.getStringsAsLongs(rowKey, colFamily, streamUpdateTime, fixUpdateTime);
     }
     public Long[] getTableUpdateTimes (String db, String table) {
-        String rowKey = db + "_" + table;
+        String rowKey = db + "." + table;
         return hbaseUtils.getStringsAsLongs(rowKey, colFamily, streamUpdateTime, fixUpdateTime);
     }
 
 
     private String assembleRowKey(String db, String table, String partitionName) {
-        return db + "_" + table + "_" + partitionName;
+        return db + "." + table + "_" + partitionName;
     }
     public HbaseUtils getHbaseUtils() {
         return hbaseUtils;

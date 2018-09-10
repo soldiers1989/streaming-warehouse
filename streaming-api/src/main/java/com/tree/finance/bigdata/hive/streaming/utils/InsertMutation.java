@@ -14,7 +14,8 @@ import java.util.List;
  * Description:
  * Created in 2018/9/4 10:33
  */
-public class InsertMutation extends Mutation{
+public class InsertMutation extends Mutation {
+
 
     public InsertMutation(String db, String table, String partition, List<String> partitions, String metastoreUris, Configuration hbaseConf) {
         super(db, table, partition, partitions, metastoreUris, hbaseConf);
@@ -28,25 +29,25 @@ public class InsertMutation extends Mutation{
         //record latest update_time of streaming data
         if (latestUpdateTime == null) {
             this.latestUpdateTime = recordUpdateTime;
-        }else {
+        } else {
             if (latestUpdateTime < recordUpdateTime) {
                 this.latestUpdateTime = recordUpdateTime;
             }
         }
+        String businessId = dbTblPrefix +
+                GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(SchemaConstants.FIELD_KEY).schema());
 
         if (checkExist) {
-            Long hbaseUpdateTime = hbaseUtils.getLong(recordId, columnFamily, updateTimeColIdentifier);
+            Long hbaseUpdateTime = hbaseUtils.getLong(businessId, columnFamily, updateTimeColIdentifier);
             if (null != hbaseUpdateTime && hbaseUpdateTime >= recordUpdateTime) {
                 return;
             }
         }
-        Put put = new Put(Bytes.toBytes(dbTblPrefix +
-                GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(SchemaConstants.FIELD_KEY).schema()))
-        );
+
+        Put put = new Put(Bytes.toBytes(businessId));
         put.addColumn(columnFamily, recordIdColIdentifier, Bytes.toBytes(recordId));
-        if (null != recordUpdateTime) {
-            put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(recordUpdateTime));
-        }
+        put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(recordUpdateTime));
+
         hbaseUtils.insertAsync(put);
         mutateCoordinator.insert(partitions, record);
     }

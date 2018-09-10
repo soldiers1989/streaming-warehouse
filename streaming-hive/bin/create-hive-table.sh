@@ -4,7 +4,7 @@ bin_dir=$(cd `dirname $0`; pwd)
 home_dir="${bin_dir}/.."
 lib_dir="${home_dir}/lib/"
 log_dir="${home_dir}/log"
-log_file="id-loader.log"
+log_file="create-hive.log"
 conf_dir="${home_dir}/conf"
 hadoop_conf_dir="/etc/hadoop/conf"
 main_class="com.tree.finance.bigdata.hive.streaming.cli.CreateTools"
@@ -20,5 +20,4 @@ fi
 
 cmd="java ${JVM_OPTS} -Dapp.config.file=$conf_dir/program.properties -Dlog_file=${log_file} -Dlog_dir=${log_dir} -classpath $CLASS_PATH  ${main_class} $@"
 
-#exec ${cmd}
-nohup ${cmd} 1>&2> ${log_dir}/std.out &
+exec ${cmd}

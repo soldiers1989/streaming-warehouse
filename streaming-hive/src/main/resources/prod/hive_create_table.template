@@ -1,6 +1,6 @@
 create table if not exists ${table_name} ${tbl_columns}
 partitioned by(p_y int, p_m int, p_d int)
-clustered by ${cluster_columns} into 1 buckets
+clustered by (${cluster_columns}) into 1 buckets
 STORED AS ORC
 TBLPROPERTIES
 ( "transactional"="true",

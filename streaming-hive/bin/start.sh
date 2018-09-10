@@ -18,6 +18,12 @@ if [ ! -e ${log_dir} ]; then
   mkdir -p ${log_dir}
 fi
 
+pid=`ps -ef | grep com.tree.finance.bigdata.hive.streaming.StreamingWarehouse |grep -v "grep" |awk '{print($2)}'`
+if [ "" != ${pid}"" ]; then
+  echo "StreamingWarehouse already started"
+  exit
+fi
+
 cmd="java ${JVM_OPTS} -Dapp.config.file=$conf_dir/program.properties -Dlog_file=${log_file} -Dlog_dir=${log_dir} -classpath $CLASS_PATH  ${main_class} $@"
 
 #exec ${cmd}
