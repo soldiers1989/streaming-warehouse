@@ -83,18 +83,36 @@ public class HbaseUtils {
             throw new RuntimeException(e);
         }
     }
-    public Long[] getStringsAsLongs(String rowKey, byte[] family, byte[] ... cols) {
+
+    public Long[] getStringsAsLongs(String rowKey, byte[] family, byte[]... cols) {
         try {
             Get getVal = new Get(Bytes.toBytes(rowKey));
             Result result = htable.get(getVal);
             Long[] values = new Long[cols.length];
-            for (int i=0; i < cols.length ; i ++) {
+            for (int i = 0; i < cols.length; i++) {
                 byte[] value = result.getValue(family, cols[i]);
                 if (value == null) {
                     continue;
                 } else {
                     values[i] = Long.valueOf(Bytes.toString(value));
                 }
+            }
+            return values;
+        } catch (Exception e) {
+            LOG.error("failed to get rowId from HBase rowKey: {}\n{}" + rowKey, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    public Object[] getAsBytes(String rowKey, byte[] family, byte[]... cols) {
+        try {
+            Get getVal = new Get(Bytes.toBytes(rowKey));
+            Result result = htable.get(getVal);
+            Object[] values = new Object[cols.length];
+            for (int i = 0; i < cols.length; i++) {
+                byte[] value = result.getValue(family, cols[i]);
+                values[i] = value;
             }
             return values;
         } catch (Exception e) {

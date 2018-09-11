@@ -6,6 +6,8 @@ import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -16,6 +18,7 @@ import java.util.List;
  */
 public class InsertMutation extends Mutation {
 
+    private static Logger LOG = LoggerFactory.getLogger(InsertMutation.class);
 
     public InsertMutation(String db, String table, String partition, List<String> partitions, String metastoreUris, Configuration hbaseConf) {
         super(db, table, partition, partitions, metastoreUris, hbaseConf);
@@ -39,7 +42,7 @@ public class InsertMutation extends Mutation {
 
         if (checkExist) {
             Long hbaseUpdateTime = hbaseUtils.getLong(businessId, columnFamily, updateTimeColIdentifier);
-            if (null != hbaseUpdateTime && hbaseUpdateTime >= recordUpdateTime) {
+            if (null != hbaseUpdateTime) {
                 return;
             }
         }

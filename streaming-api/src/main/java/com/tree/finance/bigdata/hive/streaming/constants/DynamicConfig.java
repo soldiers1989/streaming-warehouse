@@ -34,7 +34,7 @@ public class DynamicConfig {
         hbaseUtils.put(put);
     }
     public void setStreamTableUpdateTime(String db, String table, String latestUpdateTime) throws IOException{
-        String rowKey = db + "_" + table;
+        String rowKey = db + "." + table;
         Put put = new Put(Bytes.toBytes(rowKey));
         put.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(latestUpdateTime));
         hbaseUtils.put(put);

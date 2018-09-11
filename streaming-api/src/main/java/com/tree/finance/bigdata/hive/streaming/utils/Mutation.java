@@ -203,24 +203,23 @@ public abstract class Mutation {
 
         Long[] streamAndFixParTime = dynamicConfig.getPartitionUpdateTimes(db, table, partition);
         Long[] streamAndFixTblTime = dynamicConfig.getTableUpdateTimes(db, table);
-
+        latestUpdateTime = streamAndFixParTime[0];
 
         //stream table global update time not set, means first insert, should check
         if (null == streamAndFixTblTime[0]) {
-            LOG.info("table update time is null, may be first time, should check update time when insert");
+            LOG.info("table update time is null, may be first op, should check update time when insert");
             this.checkExist = true;
             return;
         }
         //streaming program's global update time, earlier than fix global update time, should check
-        if (null != streamAndFixTblTime[1] && streamAndFixTblTime[1] > streamAndFixTblTime[0]) {
+        else if (null != streamAndFixTblTime[1] && streamAndFixTblTime[1] > streamAndFixTblTime[0]) {
             LOG.info("check update time when insert,  global stream_update_time: {}, global fix_update_time: {}",
                     streamAndFixTblTime[0], streamAndFixTblTime[1]);
             this.checkExist = true;
             return;
         }
-
         //if fix program fix at partition level
-        if (streamAndFixParTime[1] != null) {
+        else if (streamAndFixParTime[1] != null) {
             if (null == streamAndFixParTime[0] || streamAndFixParTime[0]
                     < streamAndFixParTime[1]) {
                 this.checkExist = true;

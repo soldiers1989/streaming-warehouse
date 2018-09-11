@@ -86,7 +86,7 @@ public class RecIdObjectInspector extends StructObjectInspector {
                 if (fieldRef.getFieldName().equals(FIELD_NAME_ROWID)){
                     return Long.valueOf(rowIds[2]);
                 } else if (fieldRef.getFieldName().equals(FIELD_NAME_ORIGINAL_TXN_FIELD)) {
-                    return Long.valueOf(rowIds[1]);
+                    return Long.valueOf(rowIds[0]);
                 }
             }
             return null;

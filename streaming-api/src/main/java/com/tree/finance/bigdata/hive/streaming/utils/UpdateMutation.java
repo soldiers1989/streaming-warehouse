@@ -49,21 +49,27 @@ public class UpdateMutation extends Mutation {
             this.hbaseUtils = HbaseUtils.getTableInstance(ConfigFactory.getHbaseRecordIdTbl(), hbaseConf);
         }
         GenericData.Record keyRecord = (GenericData.Record) record.get(FIELD_KEY);
+
         String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(FIELD_KEY).schema());
+
+        businessId = businessId + dbTblSuffix;
+
+        Object[] idAndTime = hbaseUtils.getAsBytes(businessId, columnFamily, recordIdColIdentifier, updateTimeColIdentifier);
+
         //recordId= transactionId_BUCKET_ID _rowId
-        String recordId = hbaseUtils.getString(businessId + dbTblSuffix, columnFamily, recordIdColIdentifier);
+        String recordId = null == idAndTime[0] ? null : Bytes.toString((byte[]) idAndTime[0]);
+        Long hbaseTime = null == idAndTime[1] ? null : Bytes.toLong((byte[]) idAndTime[1]);
 
         if (! ignoreNotExist) {
             if (StringUtils.isEmpty(recordId)) {
-                LOG.warn("no recordId found for: {}, data maybe delayed", businessId + dbTblSuffix);
-                throw new DataDelayedException("no recordId found for " + businessId + dbTblSuffix);
+                LOG.warn("no recordId found for: {}, data maybe delayed", businessId);
+                throw new DataDelayedException("no recordId found for " + businessId);
             }
         }
 
         Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, record);
-        Long hbaseTime = hbaseUtils.getLong(businessId, columnFamily, recordIdColIdentifier);
 
-        if (null != hbaseTime && recordUpdateTime < hbaseTime) {
+        if (null != hbaseTime && recordUpdateTime <= hbaseTime) {
             return;
         }
 
