@@ -48,7 +48,6 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
                         .append(ConfigHolder.getConfig().getTaskTleName())
                         .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.SUCCESS).append(SQL_VALUE_QUOTE)
                         .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
-                TaskStatusListener.doWithTaskFile(taskInfo.getFilePath());
                 stmt.executeUpdate(sb.toString());
             }
 
@@ -107,11 +106,18 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {
             for (TaskInfo taskInfo : tasks) {
-                StringBuilder sb = new StringBuilder("update ")
-                        .append(ConfigHolder.getConfig().getTaskTleName())
-                        .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.SUCCESS).append(SQL_VALUE_QUOTE)
-                        .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
-                stmt.addBatch(sb.toString());
+                if (SuccessStrategy.delete.equals(successStrategy)) {
+                    StringBuilder sb = new StringBuilder("delete from ")
+                            .append(ConfigHolder.getConfig().getTaskTleName())
+                            .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
+                    stmt.addBatch(sb.toString());
+                } else if (SuccessStrategy.update.equals(successStrategy)) {
+                    StringBuilder sb = new StringBuilder("update ")
+                            .append(ConfigHolder.getConfig().getTaskTleName())
+                            .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.SUCCESS).append(SQL_VALUE_QUOTE)
+                            .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
+                    stmt.addBatch(sb.toString());
+                }
             }
             stmt.executeBatch();
         } catch (Exception e) {

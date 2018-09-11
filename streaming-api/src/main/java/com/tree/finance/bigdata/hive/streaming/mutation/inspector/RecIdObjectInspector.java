@@ -27,8 +27,7 @@ public class RecIdObjectInspector extends StructObjectInspector {
     private List<StructField> fields = new ArrayList<>();
     private Map<String, StructField> name2Fields = new HashMap<>();
     private Schema idSchema;
-    private String db;
-    private String table;
+    private String dbTableSuffix;
 
     private final String FIELD_NAME_ORIGINAL_TXN_FIELD = "originalTxnField";
     private final String FIELD_NAME_BUCKET_FIELD = "bucketField";
@@ -43,8 +42,7 @@ public class RecIdObjectInspector extends StructObjectInspector {
 
     RecIdObjectInspector(String db, String table, Schema idSchema, HbaseUtils hbaseUtils) {
         this.hbaseUtils = hbaseUtils;
-        this.db = db;
-        this.table = table;
+        dbTableSuffix = "_" + db + "." + table;
         this.idSchema = idSchema;
         init();
     }
@@ -82,7 +80,7 @@ public class RecIdObjectInspector extends StructObjectInspector {
             }
             if (fieldRef.getFieldName().equals(FIELD_NAME_ROWID) || fieldRef.getFieldName().equals(FIELD_NAME_ORIGINAL_TXN_FIELD)) {
                 String businessId = GenericRowIdUtils.assembleBuizId((GenericData.Record) data, idSchema);
-                businessId = db + "." + table + '_' + businessId;
+                businessId = businessId + dbTableSuffix;
                 String rowId = hbaseUtils.getString(businessId, defaultFamily, defaultRowIdQualifier);
                 String[] rowIds = rowId.split("_");
                 if (fieldRef.getFieldName().equals(FIELD_NAME_ROWID)){

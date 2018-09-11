@@ -152,7 +152,6 @@ public class FileManager {
                     .append(QUOTE).append(TaskStatus.NEW).append(QUOTE).append(SEP)
                     .append(QUOTE).append(new DateTime().toString("yyyy-MM-dd HH:mm:ss")).append(QUOTE)
                     .append(")");
-            LOG.info("going to execute: {}", sb.toString());
             stmt.execute(sb.toString());
         }
     }

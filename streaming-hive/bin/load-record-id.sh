@@ -20,5 +20,5 @@ fi
 
 cmd="java ${JVM_OPTS} -Dapp.config.file=$conf_dir/program.properties -Dlog_file=${log_file} -Dlog_dir=${log_dir} -classpath $CLASS_PATH  ${main_class} $@"
 
-#exec ${cmd}
-nohup ${cmd} 1>&2> ${log_dir}/std.out &
+exec ${cmd}
+#nohup ${cmd} 1>&2> ${log_dir}/std.out &

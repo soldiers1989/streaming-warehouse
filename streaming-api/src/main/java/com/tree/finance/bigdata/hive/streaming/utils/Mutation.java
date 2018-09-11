@@ -58,7 +58,7 @@ public abstract class Mutation {
 
     protected Schema recordSchema;
 
-    protected String dbTblPrefix;
+    protected String dbTblSuffix;
 
     protected HbaseUtils hbaseUtils;
 
@@ -79,7 +79,7 @@ public abstract class Mutation {
         this.table = table;
         this.partition = partition;
         this.partitions = partitions;
-        this.dbTblPrefix = db + "." + table + "_";
+        this.dbTblSuffix = "_" + db + "." + table;
         this.hbaseConf = hbaseConf;
     }
 

@@ -20,7 +20,7 @@ public abstract class AppConfig {
     @Default("streaming_warehouse_file_queue")
     public abstract String getRabbitQueueName();
     @Config("rabbit.mq.qos")
-    @Default("500")
+    @Default("10")
     public abstract int getRabbitQos();
 
     //app resource config

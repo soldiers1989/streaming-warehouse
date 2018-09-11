@@ -34,8 +34,8 @@ public class InsertMutation extends Mutation {
                 this.latestUpdateTime = recordUpdateTime;
             }
         }
-        String businessId = dbTblPrefix +
-                GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(SchemaConstants.FIELD_KEY).schema());
+        String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(SchemaConstants.FIELD_KEY).schema())
+                + dbTblSuffix;
 
         if (checkExist) {
             Long hbaseUpdateTime = hbaseUtils.getLong(businessId, columnFamily, updateTimeColIdentifier);

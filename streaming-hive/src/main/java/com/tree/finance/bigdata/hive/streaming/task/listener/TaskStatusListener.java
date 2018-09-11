@@ -51,7 +51,7 @@ public interface TaskStatusListener<T> {
                 fs.rename(new Path(filePath), newPath);
             }
         } catch (Exception e) {
-            LOG.error("may cause data inaccuracy, failed to rename or delete processed file: {}", filePath);
+            LOG.error("may cause data inaccuracy, failed to rename or delete processed file: {}", filePath, e);
         }
     }
 }

@@ -118,6 +118,8 @@ public class PartitionHelper {
                 Calendar calendar = Calendar.getInstance();
                 calendar.setTimeInMillis(timeStamp * 1000);
                 result.add(Integer.toString(calendar.get(Calendar.YEAR)));
+                result.add(Integer.toString(calendar.get(Calendar.MONTH)));
+                result.add(Integer.toString(calendar.get(Calendar.DAY_OF_MONTH)));
                 return result;
             case STRING:
                 String timeStr = value.getString(sourceParCol);
@@ -129,21 +131,13 @@ public class PartitionHelper {
                     ts.add(Calendar.HOUR, -8);
                     List<String> partitions = new ArrayList<>();
                     partitions.add(Integer.toString(ts.get(Calendar.YEAR)));
-                    partitions.add(addZeroPrefix(ts.get(Calendar.MONTH)));
-                    partitions.add(addZeroPrefix(ts.get(Calendar.DAY_OF_MONTH)));
+                    partitions.add(Integer.toString(ts.get(Calendar.MONTH)));
+                    partitions.add(Integer.toString(Calendar.DAY_OF_MONTH));
                     return partitions;
                 }
             default:
                 LOG.error("column: {}, get unsupported type: {}, value: {}, Struct: {}", field.name(), field.schema().type(), value.get(field), value.toString());
                 throw new RuntimeException("unsupported partition type " + field.schema().type());
-        }
-    }
-
-    private String addZeroPrefix(int i) {
-        if (i < 10) {
-            return "0" + Integer.toString(i);
-        } else {
-            return Integer.toString(i);
         }
     }
 
@@ -162,8 +156,18 @@ public class PartitionHelper {
             throw new RuntimeException(s + " not contains tow separator: " + c);
         }
         result.add(s.substring(0, 4));
-        result.add(s.substring(5, 7));
-        result.add(s.substring(8, 10));
+
+        String month = s.substring(5, 7);
+        if (month.charAt(0) == '0') {
+            month = month.substring(1, month.length());
+        }
+        result.add(month);
+
+        String day = s.substring(8, 10);
+        if (day.charAt(0) == '0') {
+            day = day.substring(1, day.length());
+        }
+        result.add(day);
 
         return result;
 

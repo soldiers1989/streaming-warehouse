@@ -1,6 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
+import com.tree.finance.bigdata.hive.streaming.constants.DynamicConfig;
 import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
 import com.tree.finance.bigdata.task.Operation;
@@ -50,12 +51,12 @@ public class UpdateMutation extends Mutation {
         GenericData.Record keyRecord = (GenericData.Record) record.get(FIELD_KEY);
         String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(FIELD_KEY).schema());
         //recordId= transactionId_BUCKET_ID _rowId
-        String recordId = hbaseUtils.getString(dbTblPrefix + businessId, columnFamily, recordIdColIdentifier);
+        String recordId = hbaseUtils.getString(businessId + dbTblSuffix, columnFamily, recordIdColIdentifier);
 
         if (! ignoreNotExist) {
             if (StringUtils.isEmpty(recordId)) {
-                LOG.warn("no recordId found for: {}, data maybe delayed", dbTblPrefix + businessId);
-                throw new DataDelayedException("no recordId found for " + dbTblPrefix + businessId);
+                LOG.warn("no recordId found for: {}, data maybe delayed", businessId + dbTblSuffix);
+                throw new DataDelayedException("no recordId found for " + businessId + dbTblSuffix);
             }
         }
 
@@ -84,9 +85,10 @@ public class UpdateMutation extends Mutation {
     @Override
     public void beginStreamTransaction(Schema schema, HiveConf hiveConf) {
         this.recordSchema = schema;
+        this.dynamicConfig = new DynamicConfig();
         this.checkExist = true;
+        this.conf = hiveConf;
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
-
         if (StringUtils.isEmpty(updateCol)){
             LOG.error("update column not found for table: {}, schema: {}", db + "." + table, schema);
             throw new RuntimeException("update column not found");

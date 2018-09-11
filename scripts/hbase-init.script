@@ -1,2 +1,3 @@
 create 'streaming_warehouse_system_conf', 'f'
-create 'streaming_warehouse_rowId2recId_tbl', 'f'
+
+create 'streaming_warehouse_rowId2recId_tbl', 'f', COMPRESSION => 'snappy', SPLITS => ['0', '11', '13', '16', '2', '5', '9']

@@ -186,8 +186,8 @@ public class RecordIdLoaderTools {
                     RecordIdentifier identifier = inner.createKey();
                     OrcStruct value = inner.createValue();
                     StringBuilder idSb = new StringBuilder();
-                    StringBuilder businessIdSb = new StringBuilder(db).append(".").append(table).append(CONJECT);
-                    int fixedBusinessIdLength = businessIdSb.length();
+                    StringBuilder busiIdSb = new StringBuilder();
+                    String dbTblSuffix = "_" + db + "." + table;
                     while (inner.next(identifier, value)) {
                         //RecordId
                         idSb.delete(0, idSb.length());
@@ -195,11 +195,11 @@ public class RecordIdLoaderTools {
                                 .append(identifier.getBucketId()).append(CONJECT)
                                 .append(identifier.getRowId());
                         //businessId
-                        businessIdSb.delete(fixedBusinessIdLength, businessIdSb.length());
+                        busiIdSb.delete(0, busiIdSb.length());
                         for (Integer keyIndex : primaryKeyIndex) {
-                            businessIdSb.append(value.getFieldValue(keyIndex)).append(CONJECT);
+                            busiIdSb.append(value.getFieldValue(keyIndex)).append(CONJECT);
                         }
-                        String rowKey = businessIdSb.deleteCharAt(businessIdSb.length() - 1).toString();
+                        String rowKey = busiIdSb.deleteCharAt(busiIdSb.length() - 1).append(dbTblSuffix).toString();
 
                         Long updateTime = RecordUtils.getFieldAsTimeMillis(value.getFieldValue(updateTimeIndex));
                         Put put = new Put(Bytes.toBytes(rowKey));
