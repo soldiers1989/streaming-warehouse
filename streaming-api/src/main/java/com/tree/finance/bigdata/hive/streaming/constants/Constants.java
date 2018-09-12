@@ -20,7 +20,7 @@ public interface Constants {
     String KEY_HBASE_RECORDID_TBL = "hbase.record.id.table.name";
     String KEY_HBASE_ZNODE_PARENT = "hbase.znode.parent";
 
-    String KEY_HBASE_FIX_UPDATE_TIME_COL = "key.hbase.fix.update.time.col";
+    String KEY_HBASE_CHECK_UPDATE_TIME_COL = "key.hbase.fix.update.time.col";
     String KEY_HBASE_STREAM_UPDATE_TIME_COL = "key.hbase.stream.update.time.col";
     String KEY_HBASE_SYS_CONF_TBL = "key.hbase.sys.conf.tbl";
 }

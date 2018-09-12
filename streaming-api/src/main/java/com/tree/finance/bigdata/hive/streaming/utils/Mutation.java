@@ -213,7 +213,7 @@ public abstract class Mutation {
         }
         //streaming program's global update time, earlier than fix global update time, should check
         else if (null != streamAndFixTblTime[1] && streamAndFixTblTime[1] > streamAndFixTblTime[0]) {
-            LOG.info("check update time when insert,  global stream_update_time: {}, global fix_update_time: {}",
+            LOG.info("check update time when insert,  global stream_update_time: {}, global check_update_time: {}",
                     streamAndFixTblTime[0], streamAndFixTblTime[1]);
             this.checkExist = true;
             return;

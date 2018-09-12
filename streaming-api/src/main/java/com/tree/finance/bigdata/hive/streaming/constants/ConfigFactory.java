@@ -85,8 +85,8 @@ public class ConfigFactory {
                 properties.getProperty(Constants.KEY_HBASE_STREAM_UPDATE_TIME_COL) : "stream_update_time";
     }
     public static String getFixUpdateTimeQualifier() {
-        return properties.contains(Constants.KEY_HBASE_FIX_UPDATE_TIME_COL) ?
-                properties.getProperty(Constants.KEY_HBASE_FIX_UPDATE_TIME_COL) : "fix_update_time";
+        return properties.contains(Constants.KEY_HBASE_CHECK_UPDATE_TIME_COL) ?
+                properties.getProperty(Constants.KEY_HBASE_CHECK_UPDATE_TIME_COL) : "check_update_time";
     }
 
 }
