@@ -1,14 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.mutation;
 
-import com.tree.finance.bigdata.hive.streaming.mutation.inspector.TimeStampObjectInspector;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
 import org.junit.Test;
-
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.TreeMap;
 
 /**
  * @author Zhengsj

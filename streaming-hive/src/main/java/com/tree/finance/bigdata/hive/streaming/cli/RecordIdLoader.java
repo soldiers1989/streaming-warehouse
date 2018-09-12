@@ -1,7 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.cli;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
-import com.tree.finance.bigdata.hive.streaming.utils.record.RecordIdLoaderTools;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
@@ -9,7 +8,6 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -30,6 +28,7 @@ public class RecordIdLoader {
         } catch (Exception e) {
             LOG.error("", e);
             parser.printHelp();
+            return;
         }
 
         if (StringUtils.isEmpty(parser.getTable())) {

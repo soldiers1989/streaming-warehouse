@@ -14,7 +14,7 @@ import java.io.IOException;
 public class DynamicConfig {
 
     private HbaseUtils hbaseUtils;
-    private byte[] fixUpdateTime = Bytes.toBytes(ConfigFactory.getFixUpdateTimeQualifier());
+    private byte[] fixUpdateTime = Bytes.toBytes(ConfigFactory.getCheckUpdateTimeQualifier());
     private byte[] streamUpdateTime = Bytes.toBytes(ConfigFactory.getStreamUpdateTimeQualifier());
     private byte[] colFamily = Bytes.toBytes(ConfigFactory.getHbaseColumnFamily());
 

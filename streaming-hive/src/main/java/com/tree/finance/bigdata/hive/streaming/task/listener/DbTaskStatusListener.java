@@ -4,7 +4,6 @@ import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.task.TaskInfo;
 import com.tree.finance.bigdata.task.TaskStatus;
 import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
-import org.apache.hadoop.hdfs.DFSClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

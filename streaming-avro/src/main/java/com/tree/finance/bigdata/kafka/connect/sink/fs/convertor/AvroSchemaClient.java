@@ -1,9 +1,6 @@
 package com.tree.finance.bigdata.kafka.connect.sink.fs.convertor;
 
 import com.tree.finance.bigdata.kafka.connect.sink.fs.schema.VersionedTable;
-
-import static com.tree.finance.bigdata.schema.SchemaConstants.*;
-
 import com.tree.finance.bigdata.task.Operation;
 import org.apache.avro.Schema;
 import org.apache.kafka.connect.data.Struct;
@@ -13,6 +10,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static com.tree.finance.bigdata.schema.SchemaConstants.*;
 
 /**
  * @author Zhengsj

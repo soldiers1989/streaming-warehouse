@@ -1,8 +1,6 @@
 package com.tree.finance.bigdata.kafka.connect.sink.fs.partition;
 
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.junit.Test;
 
 import java.text.SimpleDateFormat;

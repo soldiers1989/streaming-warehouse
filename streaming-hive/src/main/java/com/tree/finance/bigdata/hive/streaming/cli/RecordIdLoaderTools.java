@@ -1,6 +1,5 @@
-package com.tree.finance.bigdata.hive.streaming.utils.record;
+package com.tree.finance.bigdata.hive.streaming.cli;
 
-import com.tree.finance.bigdata.hive.streaming.cli.CreateTools;
 import com.tree.finance.bigdata.hive.streaming.config.Constants;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
@@ -9,6 +8,8 @@ import com.tree.finance.bigdata.hive.streaming.utils.RecordUtils;
 import com.tree.finance.bigdata.utils.common.CollectionUtils;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -85,9 +86,14 @@ public class RecordIdLoaderTools {
         PartitionSpecProxy proxy = iMetaStoreClient.listPartitionSpecs(db, table, Integer.MAX_VALUE);
         Iterator<Partition> iterator = proxy.getPartitionIterator();
         int totalPartitions = 0;
+        FileSystem fs = FileSystem.get(new Configuration());
         while (iterator.hasNext()) {
+            String path = iterator.next().getSd().getLocation();
+            if (!fs.exists(new Path(path))) {
+                continue;
+            }
             totalPartitions++;
-            executor.submit(new LoadTask(iterator.next().getSd().getLocation()));
+            executor.submit(new LoadTask(path));
         }
         iMetaStoreClient.close();
         System.out.println("table: " + table +", total partitions: " + totalPartitions);

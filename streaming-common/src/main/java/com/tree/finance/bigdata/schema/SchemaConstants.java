@@ -1,7 +1,5 @@
 package com.tree.finance.bigdata.schema;
 
-import org.apache.avro.Schema;
-
 /**
  * @author Zhengsj
  * Description:

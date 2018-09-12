@@ -2,8 +2,8 @@ package com.tree.finance.bigdata.hive.streaming.task.consumer;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.task.listener.MqTaskStatusListener;
-import com.tree.finance.bigdata.utils.mq.ChannelMsg;
 import com.tree.finance.bigdata.task.TaskInfo;
+import com.tree.finance.bigdata.utils.mq.ChannelMsg;
 
 /**
  * @author Zhengsj

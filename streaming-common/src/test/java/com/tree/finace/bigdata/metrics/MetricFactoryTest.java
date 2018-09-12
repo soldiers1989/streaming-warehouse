@@ -1,6 +1,5 @@
 package com.tree.finace.bigdata.metrics;
 
-import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 import io.prometheus.client.exporter.HTTPServer;
 import org.junit.Test;

@@ -1,17 +1,12 @@
 package com.tree.finance.bigdata.kafka.connect.sink.fs.convertor;
 
-import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.avro.AvroWriterRef;
-import com.tree.finance.bigdata.task.Operation;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.junit.Test;
 
 import java.io.File;
-import java.util.Arrays;
 
 /**
  * @author Zhengsj

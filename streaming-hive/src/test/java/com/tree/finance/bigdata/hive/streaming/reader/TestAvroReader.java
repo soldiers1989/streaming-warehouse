@@ -1,6 +1,5 @@
 package com.tree.finance.bigdata.hive.streaming.reader;
 
-import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
 

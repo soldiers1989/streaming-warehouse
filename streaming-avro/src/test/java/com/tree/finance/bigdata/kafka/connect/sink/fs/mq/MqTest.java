@@ -2,10 +2,10 @@ package com.tree.finance.bigdata.kafka.connect.sink.fs.mq;
 
 import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
-import com.tree.finance.bigdata.utils.mq.ChannelMsg;
-import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
 import com.tree.finance.bigdata.task.Operation;
 import com.tree.finance.bigdata.task.TaskInfo;
+import com.tree.finance.bigdata.utils.mq.ChannelMsg;
+import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
 import org.junit.Test;
 
 /**

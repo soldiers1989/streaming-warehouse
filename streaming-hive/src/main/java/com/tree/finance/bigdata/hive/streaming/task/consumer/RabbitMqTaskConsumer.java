@@ -2,9 +2,9 @@ package com.tree.finance.bigdata.hive.streaming.task.consumer;
 
 import com.alibaba.fastjson.JSON;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
+import com.tree.finance.bigdata.task.TaskInfo;
 import com.tree.finance.bigdata.utils.mq.ChannelMsg;
 import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
-import com.tree.finance.bigdata.task.TaskInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
