@@ -70,7 +70,7 @@ public class UpdateMutation extends Mutation {
 
         Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, record);
 
-        if (null != hbaseTime && recordUpdateTime < hbaseTime) {
+        if (null != hbaseTime && recordUpdateTime <= hbaseTime) {
             return;
         }
 
