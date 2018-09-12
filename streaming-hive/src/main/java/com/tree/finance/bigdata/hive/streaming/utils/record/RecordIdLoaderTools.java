@@ -35,7 +35,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_CONF_FILE;
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_PASSWORD;
@@ -67,7 +66,6 @@ public class RecordIdLoaderTools {
     private Logger LOG = LoggerFactory.getLogger(RecordIdLoaderTools.class);
 
     private AtomicInteger finishedTasks = new AtomicInteger(0);
-    private AtomicLong finishedRecords = new AtomicLong(0);
 
     public RecordIdLoaderTools(String db, String table, int cores) {
         this.cores = cores;
@@ -92,13 +90,13 @@ public class RecordIdLoaderTools {
             executor.submit(new LoadTask(iterator.next().getSd().getLocation()));
         }
         iMetaStoreClient.close();
-        System.out.println("total partitions: " + totalPartitions);
+        System.out.println("table: " + table +", total partitions: " + totalPartitions);
         executor.shutdown();
         while (!executor.isTerminated()) {
             LOG.info("wait tasks to be finished ...");
             executor.awaitTermination(5, TimeUnit.SECONDS);
         }
-        System.out.println("finished loading");
+        System.out.println("finished loading table: " + table);
     }
 
     private void prepare(IMetaStoreClient iMetaStoreClient) throws Exception {
@@ -206,22 +204,16 @@ public class RecordIdLoaderTools {
                         put.addColumn(columnFamily, recordIdentifier, Bytes.toBytes(idSb.toString()));
                         put.addColumn(columnFamily, updateTimeIdentifier, Bytes.toBytes(updateTime));
                         hbaseUtils.insertAsync(put);
-                        finishedRecords.incrementAndGet();
                     }
                 }
                 hbaseUtils.close();
-                System.out.println("finished task " + finishedTasks.incrementAndGet()
-                        + ", finished records " + finishedRecords.get());
+                System.out.println("finished task " + finishedTasks.incrementAndGet());
             } catch (Exception e) {
                 LOG.error("", e);
                 System.out.println("failed to load: " + path);
             }
 
         }
-    }
-
-    public static void main(String[] args) throws Exception {
-        new RecordIdLoaderTools("customer_service", "cs_queue_common", 1).load();
     }
 
 }

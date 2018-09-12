@@ -30,7 +30,7 @@ public class RecordIdLoaderParser {
 
         Option dbOption = Option.builder(OPTION_NAME_DB).hasArg().argName(OPTION_NAME_DB).required(true)
                 .desc("mysql database name").build();
-        Option tblOption = Option.builder(OPTION_NAME_TBL).hasArg().argName(OPTION_NAME_TBL).required(true)
+        Option tblOption = Option.builder(OPTION_NAME_TBL).hasArg().argName(OPTION_NAME_TBL).required(false)
                 .valueSeparator(',').desc("mysql database name(split by ,)").build();
         Option cores = Option.builder(OPTION_CORES).hasArg().argName(OPTION_CORES).required(true)
                 .valueSeparator(',').desc("mysql database name(split by ,)").build();
