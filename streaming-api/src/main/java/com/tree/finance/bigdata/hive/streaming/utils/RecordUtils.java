@@ -196,5 +196,27 @@ public class RecordUtils {
             throw new RuntimeException("unknown type: " + value.getClass());
         }
     }
+
+    public static String[] splitRecordId(String s, char c) {
+        String[] result = new String[3];
+        int pos1 = 0;
+        int pos2 = 0;
+        boolean found1 = false;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) == c) {
+                if (!found1){
+                    found1 = true;
+                    pos1 = i;
+                }else {
+                    pos2 = i;
+                    break;
+                }
+            }
+        }
+        result[0] = s.substring(0, pos1);
+        result[1] = s.substring(pos1 + 1, pos2);
+        result[2] = s.substring(pos2 + 1, s.length());
+        return result;
+    }
     
 }

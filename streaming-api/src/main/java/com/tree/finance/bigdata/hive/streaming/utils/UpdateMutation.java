@@ -14,6 +14,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.io.RecordIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +36,9 @@ public class UpdateMutation extends Mutation {
 
     private HiveConf conf;
 
-    TreeMap<String, GenericData.Record> recordIdsortedRecord = new TreeMap<>(Comparator.reverseOrder());
-    Object2ObjectOpenHashMap<String, String> recordIdToBuziId = new Object2ObjectOpenHashMap();
-    Object2LongOpenHashMap<String> recordToUpdateTime = new Object2LongOpenHashMap<>();
+    TreeMap<RecordIdentifier, GenericData.Record> recordIdsortedRecord = new TreeMap<>();
+    Object2ObjectOpenHashMap<RecordIdentifier, String> recordIdToBuziId = new Object2ObjectOpenHashMap();
+    Object2LongOpenHashMap<RecordIdentifier> recordToUpdateTime = new Object2LongOpenHashMap<>();
 
     public UpdateMutation(String db, String table, String partition, List<String> partitions, String metastoreUris, Configuration hbaseConf) {
         super(db, table, partition, partitions, metastoreUris, hbaseConf);
@@ -60,7 +61,7 @@ public class UpdateMutation extends Mutation {
         String recordId = null == idAndTime[0] ? null : Bytes.toString((byte[]) idAndTime[0]);
         Long hbaseTime = null == idAndTime[1] ? null : Bytes.toLong((byte[]) idAndTime[1]);
 
-        if (! ignoreNotExist) {
+        if (!ignoreNotExist) {
             if (StringUtils.isEmpty(recordId)) {
                 LOG.warn("no recordId found for: {}, data maybe delayed", businessId);
                 throw new DataDelayedException("no recordId found for " + businessId);
@@ -69,7 +70,7 @@ public class UpdateMutation extends Mutation {
 
         Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, record);
 
-        if (null != hbaseTime && recordUpdateTime <= hbaseTime) {
+        if (null != hbaseTime && recordUpdateTime < hbaseTime) {
             return;
         }
 
@@ -77,15 +78,13 @@ public class UpdateMutation extends Mutation {
             return;
         }
 
-        recordIdToBuziId.put(recordId, businessId);
-        recordIdsortedRecord.put(recordId, record);
-        try{
-            recordToUpdateTime.put(recordId, recordUpdateTime);
-        }catch (Exception e) {
-            LOG.error("{}, {}", recordId == null, recordUpdateTime == null);
-            LOG.error("{}, {}", recordId, recordUpdateTime);
-            throw e;
-        }
+        String[] recordIds = RecordUtils.splitRecordId(recordId, '_');
+        RecordIdentifier recordIdentifier = new RecordIdentifier(Integer.valueOf(recordIds[0]),
+                Integer.valueOf(recordIds[1]), Integer.valueOf(recordIds[2]));
+        recordIdsortedRecord.put(recordIdentifier, record);
+
+        recordIdToBuziId.put(recordIdentifier, businessId);
+        recordToUpdateTime.put(recordIdentifier, recordUpdateTime);
     }
 
     @Override
@@ -95,7 +94,7 @@ public class UpdateMutation extends Mutation {
         this.checkExist = true;
         this.conf = hiveConf;
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
-        if (StringUtils.isEmpty(updateCol)){
+        if (StringUtils.isEmpty(updateCol)) {
             LOG.error("update column not found for table: {}, schema: {}", db + "." + table, schema);
             throw new RuntimeException("update column not found");
         }
@@ -105,7 +104,7 @@ public class UpdateMutation extends Mutation {
     public void commitTransaction() throws Exception {
         // update should always check exist
         super.beginTransaction(recordSchema, this.conf);
-        for (Map.Entry<String, GenericData.Record> entry : recordIdsortedRecord.entrySet()) {
+        for (Map.Entry<RecordIdentifier, GenericData.Record> entry : recordIdsortedRecord.entrySet()) {
             GenericData.Record record = entry.getValue();
             if (record == null) {
                 continue;
@@ -119,12 +118,11 @@ public class UpdateMutation extends Mutation {
             Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, record);
             if (null == latestUpdateTime) {
                 this.latestUpdateTime = recordUpdateTime;
-            }else if (this.latestUpdateTime < recordUpdateTime) {
+            } else if (this.latestUpdateTime < recordUpdateTime) {
                 this.latestUpdateTime = recordUpdateTime;
             }
 
             Put put = new Put(Bytes.toBytes(recordIdToBuziId.get(entry.getKey())));
-
             if (null != recordUpdateTime) {
                 put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(recordUpdateTime));
             }
