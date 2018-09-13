@@ -7,10 +7,14 @@ log_dir="${home_dir}/log"
 log_file="program.log"
 conf_dir="${home_dir}/conf"
 hadoop_conf_dir="/etc/hadoop/conf"
+
 main_class="com.tree.finance.bigdata.hive.streaming.StreamingWarehouse"
 HADOOP_CLASS_PATH=`hadoop classpath`
 HBASE_CLASS_PATH=`hbase classpath`
-CLASS_PATH="${conf_dir}:${lib_dir}/*:$hadoop_conf_dir:$HADOOP_CLASS_PATH:${HBASE_CLASS_PATH} ";
+CLASS_PATH="${conf_dir}:${lib_dir}/*:$hadoop_conf_dir:$HADOOP_CLASS_PATH:${HBASE_CLASS_PATH} "
+
+export HADOOP_USER_NAME="hive"
+
 DEBUG_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=12346"
 JVM_OPTS="-Xmx1G -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${log_dir} "
 

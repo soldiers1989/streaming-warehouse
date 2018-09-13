@@ -1,7 +1,10 @@
 package com.tree.finance.bigdata.hive.streaming.service;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
+import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
 import com.tree.finance.bigdata.hive.streaming.task.processor.InsertTaskProcessor;
 import com.tree.finance.bigdata.hive.streaming.task.processor.UpdateTaskProcessor;
 import com.tree.finance.bigdata.task.Operation;
@@ -33,9 +36,7 @@ public class TaskDispatcher implements Service {
     }
 
     public void init() {
-        this.factory = new ConnectionFactory.Builder().jdbcUrl(config.getTaskDbUrl())
-                .user(config.getTaskDbUser()).password(config.getTaskDbPassword())
-                .acquireIncrement(1).initialPoolSize(5).maxPollSize(10).build();
+        this.factory = ConfigHolder.getDbFactory();
 
         this.insertExecutor = new InsertTaskProcessor[config.getInsertProcessorCores()];
         for (int i = 0; i < config.getInsertProcessorCores(); i++) {
@@ -52,12 +53,10 @@ public class TaskDispatcher implements Service {
         LOG.info("started TaskProcessor ...");
     }
 
-    public void dispatch(ConsumedTask consumedTask) {
-
+    public void dispatch(RabbitMqTask consumedTask) {
         if (null == consumedTask) {
             return;
         }
-
         int hash = Math.abs(Objects.hash(consumedTask.getTaskInfo().getDb(), consumedTask.getTaskInfo().getTbl(),
                 consumedTask.getTaskInfo().getPartitionName()));
 
@@ -65,6 +64,21 @@ public class TaskDispatcher implements Service {
             insertExecutor[hash % insertExecutor.length].process(consumedTask);
         } else if (Operation.UPDATE.equals(consumedTask.getTaskInfo().getOp()) || Operation.DELETE.equals(consumedTask.getTaskInfo().getOp())) {
             updateExecutor[hash % updateExecutor.length].process(consumedTask);
+        } else {
+            LOG.error("unsupported task type: {}", consumedTask.getTaskInfo());
+            consumedTask.taskRejected();
+        }
+    }
+
+    public void dispatch(MysqlTask consumedTask) {
+        if (null == consumedTask) {
+            return;
+        }
+        //handle by scheduler thread
+        if (Operation.CREATE.equals(consumedTask.getTaskInfo().getOp())) {
+            insertExecutor[0].handleMysqlTask(consumedTask);
+        } else if (Operation.UPDATE.equals(consumedTask.getTaskInfo().getOp()) || Operation.DELETE.equals(consumedTask.getTaskInfo().getOp())) {
+            updateExecutor[0].handleMysqlTask(consumedTask);
         } else {
             LOG.error("unsupported task type: {}", consumedTask.getTaskInfo());
             consumedTask.taskRejected();
@@ -80,7 +94,7 @@ public class TaskDispatcher implements Service {
             } catch (Exception e) {
                 LOG.error("error stopping insert ");
             }
-            LOG.info("stopped TaskProcessor");
+            LOG.info("stopped insert TaskProcessor");
         }
 
         for (UpdateTaskProcessor updateTaskProcessor : updateExecutor) {
@@ -89,8 +103,10 @@ public class TaskDispatcher implements Service {
             } catch (Exception e) {
                 LOG.error("error stopping insert ");
             }
-            LOG.info("stopped TaskProcessor");
+            LOG.info("stopped update TaskProcessor");
         }
+
+        this.factory.close();
 
     }
 }

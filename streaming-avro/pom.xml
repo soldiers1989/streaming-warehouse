@@ -83,7 +83,7 @@
     <build>
         <plugins>
 
-            <plugin>
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
@@ -96,7 +96,7 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <appendAssemblyId>false</appendAssemblyId>
+                    <appendAssemblyId>true</appendAssemblyId>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
@@ -110,7 +110,32 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin>-->
+
+
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <configuration>
+                            <descriptors>
+                                <!-- 描述文件路径 -->
+                                <descriptor>/assembly/assembly.xml</descriptor>
+                            </descriptors>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <!--名字任意 -->
+                                <id>make-assembly</id>
+                                <!-- 绑定到package生命周期阶段上 -->
+                                <phase>package</phase>
+                                <goals>
+                                    <!-- 只运行一次 -->
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
         </plugins>
     </build>
 

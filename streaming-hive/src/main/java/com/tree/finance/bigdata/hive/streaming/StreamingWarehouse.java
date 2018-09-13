@@ -2,7 +2,7 @@ package com.tree.finance.bigdata.hive.streaming;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
-import com.tree.finance.bigdata.hive.streaming.service.TaskConsumerService;
+import com.tree.finance.bigdata.hive.streaming.service.TaskGenerator;
 import com.tree.finance.bigdata.hive.streaming.service.TaskDispatcher;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricServer;
 import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
@@ -18,7 +18,7 @@ public class StreamingWarehouse {
 
     private static Logger LOG = LoggerFactory.getLogger(StreamingWarehouse.class);
 
-    private TaskConsumerService taskDispatcher;
+    private TaskGenerator taskGenerator;
 
     private TaskDispatcher processor;
 
@@ -28,20 +28,20 @@ public class StreamingWarehouse {
 
     public StreamingWarehouse(AppConfig config) {
         this.processor = new TaskDispatcher(config);
-        this.taskDispatcher = new TaskConsumerService(config, processor);
+        this.taskGenerator = new TaskGenerator(config, processor);
         this.config = config;
         this.metricServer = new MetricServer(config.getPrometheusServerPort());
     }
 
     public void init() throws Exception{
         this.processor.init();
-        this.taskDispatcher.init();
+        this.taskGenerator.init();
         this.metricServer.init();
     }
 
     public void stop() throws InterruptedException {
         LOG.info("start to stop program");
-        this.taskDispatcher.stop();
+        this.taskGenerator.stop();
         this.processor.stop();
         this.metricServer.stop();
         RabbitMqUtils.getInstance(config.getRabbitHost(), config.getRabbitPort()).close();

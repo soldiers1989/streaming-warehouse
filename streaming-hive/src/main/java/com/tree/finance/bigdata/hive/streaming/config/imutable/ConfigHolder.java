@@ -1,6 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.config.imutable;
 
 import com.tree.finance.bigdata.utils.common.StringUtils;
+import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hive.hcatalog.streaming.mutate.client.MutatorClient;
 import org.slf4j.Logger;
@@ -24,6 +25,14 @@ public class ConfigHolder {
     private static AppConfig config = initAppConfig();
 
     private static HiveConf hiveConf = initHiveConf();
+
+    private static ConnectionFactory factory = initFactory();
+
+    private static ConnectionFactory initFactory() {
+        return new ConnectionFactory.Builder().jdbcUrl(config.getTaskDbUrl())
+                .user(config.getTaskDbUser()).password(config.getTaskDbPassword())
+                .acquireIncrement(1).initialPoolSize(5).maxPollSize(10).build();
+    }
 
     private static HiveConf initHiveConf() {
         HiveConf conf = new HiveConf();
@@ -53,5 +62,9 @@ public class ConfigHolder {
 
     public static AppConfig getConfig() {
         return config;
+    }
+
+    public static ConnectionFactory getDbFactory() {
+        return factory;
     }
 }

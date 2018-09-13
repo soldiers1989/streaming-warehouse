@@ -6,7 +6,8 @@ import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
-import com.tree.finance.bigdata.hive.streaming.task.consumer.RabbitMqTask;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
 import com.tree.finance.bigdata.hive.streaming.utils.UpdateMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
 import com.tree.finance.bigdata.task.TaskInfo;
@@ -121,6 +122,59 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             try {
                 updateMutation.abortTxn();
                 mqTaskStatusListener.onTaskError((RabbitMqTask) task);
+                dbTaskStatusListener.onTaskError(task.getTaskInfo());
+            } catch (Exception e) {
+                LOG.error("error abort txn", e);
+            }
+        } finally {
+            try {
+                timer.observeDuration();
+            } catch (Exception e) {
+                LOG.error("error closing client", e);
+            }
+        }
+    }
+
+    public void handleMysqlTask(MysqlTask task) {
+        Summary.Timer timer = MetricReporter.startUpdate();
+        long startTime = System.currentTimeMillis();
+        LOG.info("file task start: {}", task.getTaskInfo().getFilePath());
+        UpdateMutation updateMutation = new UpdateMutation(task.getTaskInfo().getDb(), task.getTaskInfo().getTbl(),
+                task.getTaskInfo().getPartitionName(), task.getTaskInfo().getPartitions(),
+                config.getMetastoreUris(), ConfigFactory.getHbaseConf());
+        try {
+            Path path = new Path(task.getTaskInfo().getFilePath());
+            FileSystem fileSystem = FileSystem.get(new Configuration());
+            if (!fileSystem.exists(path)) {
+                LOG.warn("path not exist: {}", task.getTaskInfo().getFilePath());
+                dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
+                return;
+            }
+            Long bytes = fileSystem.getFileStatus(path).getLen();
+            AvroFileReader reader = new AvroFileReader(path);
+            Schema recordSchema = reader.getSchema();
+            updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
+            while (reader.hasNext()) {
+                GenericData.Record record = reader.next();
+                updateMutation.update(record, false);
+            }
+            updateMutation.commitTransaction();
+            dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
+            MetricReporter.updatedBytes(bytes);
+            long endTime = System.currentTimeMillis();
+            LOG.info("file task success: {} cost: {}ms", task.getTaskInfo().getFilePath(), endTime - startTime);
+
+        } catch (DataDelayedException e) {
+            LOG.info("task delay: {}", task.getTaskInfo());
+            dbTaskStatusListener.onTaskDelay(task.getTaskInfo());
+        } catch (TransactionException e) {
+            updateMutation.abortTxn();
+            // if get transaction exception ignore it, let others process this task
+            LOG.warn("ignore this transaction exception， let others process this task", e);
+        } catch (Throwable t) {
+            LOG.error("file task failed: " + task.getTaskInfo().getFilePath(), t);
+            try {
+                updateMutation.abortTxn();
                 dbTaskStatusListener.onTaskError(task.getTaskInfo());
             } catch (Exception e) {
                 LOG.error("error abort txn", e);

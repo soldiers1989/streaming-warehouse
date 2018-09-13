@@ -1,7 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.task.listener;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
-import com.tree.finance.bigdata.hive.streaming.task.consumer.RabbitMqTask;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

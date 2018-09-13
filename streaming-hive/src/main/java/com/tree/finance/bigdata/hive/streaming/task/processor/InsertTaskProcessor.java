@@ -5,7 +5,8 @@ import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
-import com.tree.finance.bigdata.hive.streaming.task.consumer.RabbitMqTask;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
 import com.tree.finance.bigdata.hive.streaming.utils.InsertMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
 import com.tree.finance.bigdata.task.TaskInfo;
@@ -32,7 +33,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
 
     private static Logger LOG = LoggerFactory.getLogger(InsertTaskProcessor.class);
 
-    private LinkedBlockingQueue<ConsumedTask> taskQueue;
+    private LinkedBlockingQueue<RabbitMqTask> taskQueue;
 
     private volatile boolean stop = false;
 
@@ -58,8 +59,8 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
 
         while (!stop || !taskQueue.isEmpty()) {
             try {
-                ConsumedTask task = taskQueue.take();
-                handleByEach(task);
+                RabbitMqTask task = taskQueue.take();
+                handleMqTask(task);
             } catch (Throwable t) {
                 LOG.error("unexpected ERROR !!!", t);
             }
@@ -67,7 +68,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
         LOG.info("{}, stopped", Thread.currentThread().getName());
     }
 
-    private void handleByEach(ConsumedTask task) {
+    private void handleMqTask(RabbitMqTask task) {
         InsertMutation mutationUtils = new InsertMutation(task.getTaskInfo().getDb(),
                 task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
                 task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
@@ -95,6 +96,37 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             try {
                 mutationUtils.abortTxn();
                 mqTaskStatusListener.onTaskError((RabbitMqTask) task);
+                dbTaskStatusListener.onTaskError(task.getTaskInfo());
+            } catch (Throwable e) {
+                LOG.error("error abort txn", e);
+            }
+        }
+    }
+
+    public void handleMysqlTask(MysqlTask task) {
+        InsertMutation mutationUtils = new InsertMutation(task.getTaskInfo().getDb(),
+                task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
+                task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
+        try {
+            long start = System.currentTimeMillis();
+            LOG.info("single task start: {}", task.getTaskInfo().getFilePath());
+            handleTask(mutationUtils, task.getTaskInfo());
+            LOG.info("single task success: {}, cost: {}ms", task.getTaskInfo().getFilePath(), System.currentTimeMillis() - start);
+            mutationUtils.commitTransaction();
+            try {
+                dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
+            } catch (Exception e) {
+                // ignore ack failure. Cause once success, source file is renamed, and will not be retried
+                LOG.warn("ack success failed, will not affect data accuracy", e);
+            }
+            handleMoreTask(task.getTaskInfo());
+        } catch (TransactionException e) {
+            LOG.warn("txn exception", e);
+            mutationUtils.abortTxn();
+        } catch (Throwable t) {
+            LOG.error("file task failed: {}", task.getTaskInfo(), t);
+            try {
+                mutationUtils.abortTxn();
                 dbTaskStatusListener.onTaskError(task.getTaskInfo());
             } catch (Throwable e) {
                 LOG.error("error abort txn", e);
@@ -178,7 +210,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
     }
 
 
-    public void process(ConsumedTask consumedTask) {
+    public void process(RabbitMqTask consumedTask) {
         this.taskQueue.offer(consumedTask);
     }
 

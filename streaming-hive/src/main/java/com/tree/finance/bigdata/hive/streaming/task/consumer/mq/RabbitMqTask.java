@@ -1,6 +1,7 @@
-package com.tree.finance.bigdata.hive.streaming.task.consumer;
+package com.tree.finance.bigdata.hive.streaming.task.consumer.mq;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
 import com.tree.finance.bigdata.hive.streaming.task.listener.MqTaskStatusListener;
 import com.tree.finance.bigdata.task.TaskInfo;
 import com.tree.finance.bigdata.utils.mq.ChannelMsg;
@@ -10,7 +11,7 @@ import com.tree.finance.bigdata.utils.mq.ChannelMsg;
  * Description:
  * Created in 2018/7/5 10:05
  */
-public class RabbitMqTask implements ConsumedTask{
+public class RabbitMqTask implements ConsumedTask {
 
     private TaskInfo taskInfo;
 

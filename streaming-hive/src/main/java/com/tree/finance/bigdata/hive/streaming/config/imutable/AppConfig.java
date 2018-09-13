@@ -31,7 +31,7 @@ public abstract class AppConfig {
     @Default("10")
     public abstract Integer getInsertProcessorCores();
     @Config("processor.update.cores")
-    @Default("2")
+    @Default("5")
     public abstract Integer getUpdateProcessorCores();
 
     //task retry config
@@ -67,6 +67,9 @@ public abstract class AppConfig {
     @Config("database.task.info.on.success.strategy")
     @Default("delete")
     public abstract String getDBTaskInfoStrategyOnSuccess();
+    @Config("task.delay.schedule.check.interval.min")
+    @Default("5")
+    public abstract int getDelayScheduleMin();
 
     //task database config
     @Config("task.db.url")
@@ -78,5 +81,4 @@ public abstract class AppConfig {
     @Config("task.tbl.name")
     @Default("task_info")
     public abstract String getTaskTleName();
-
 }
