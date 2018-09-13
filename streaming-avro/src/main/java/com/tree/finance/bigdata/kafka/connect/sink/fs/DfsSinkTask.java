@@ -46,16 +46,10 @@ public class DfsSinkTask extends SinkTask {
         if (records.isEmpty()) {
             return;
         }
-        if (log.isTraceEnabled()){
-            final SinkRecord first = records.iterator().next();
-            final int recordsCount = records.size();
-            log.trace("Received {} records. First record kafka coordinates:({}-{}-{}). Writing them to the database...",
-                    recordsCount, first.topic(), first.kafkaPartition(), first.kafkaOffset());
-        }
         try {
             processor.process(records);
         } catch (Exception e) {
-            log.error("Write of {} records failed", records.size(), e);
+            log.error("Write of {} records failed, , table: {}", records.size(), e);
             throw new RuntimeException(e);
         }
     }

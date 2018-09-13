@@ -35,7 +35,7 @@ public class PartitionHelper {
 
     /**
      * @param sinkTable
-     * @param struct after field
+     * @param struct    after field
      * @return
      * @throws Exception
      */
@@ -62,7 +62,7 @@ public class PartitionHelper {
                     break;
                 }
             }
-            if (! matchCreate){
+            if (!matchCreate) {
                 continue;
             }
             for (String timeStr : timeStrs) {
@@ -83,12 +83,13 @@ public class PartitionHelper {
         } else {
             LOG.info("global partition config: {}", Arrays.toString(globalDefaults));
             LOG.error("table: {}, found illegal partition columns: [{}]", sinkTable, Arrays.toString(partitionsFromDefault.toArray()));
-            throw new RuntimeException(sinkTable + " found " + partitionsFromDefault.size() +" partition columns" );
+            throw new RuntimeException(sinkTable + " found " + partitionsFromDefault.size() + " partition columns");
         }
     }
 
     public static String getSinkPartitionName(List<String> partCols, List<String> vals) {
         StringBuilder name = new StringBuilder();
+
         for (int i = 0; i < partCols.size(); ++i) {
             if (i > 0) {
                 name.append("/");
@@ -103,8 +104,12 @@ public class PartitionHelper {
     public List<String> buildYmdPartitionVals(String sourceParCol, Struct value) {
 
         List<String> result = new ArrayList<>();
-
         Field field = value.schema().field(sourceParCol);
+
+        //no partition value..
+        if (value.get(field) == null) {
+            return null;
+        }
 
         if (null == field) {
             LOG.error("schema: [{}] not contains field: {}",
@@ -141,18 +146,15 @@ public class PartitionHelper {
         }
     }
 
-    public List<String> getYmdFromDateStr (String s, char c){
-        if (StringUtils.isEmpty(s)){
-            return null;
-        }
+    public List<String> getYmdFromDateStr(String s, char c) {
 
         List<String> result = new ArrayList<>();
 
-        if (s.length() < 12){
+        if (s.length() < 12) {
             throw new RuntimeException("illegal date: " + s);
         }
 
-        if (s.charAt(4) != c || s.charAt(7) != c){
+        if (s.charAt(4) != c || s.charAt(7) != c) {
             throw new RuntimeException(s + " not contains tow separator: " + c);
         }
         result.add(s.substring(0, 4));

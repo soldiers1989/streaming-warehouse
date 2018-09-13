@@ -14,7 +14,11 @@ import com.tree.finance.bigdata.task.Operation;
 import org.apache.avro.generic.GenericData;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.List;
 
@@ -35,6 +39,8 @@ public class Processor {
 
     private String dbName;
 
+    private static Logger LOG = LoggerFactory.getLogger(Processor.class);
+
     public Processor(SinkConfig config) {
         this.partitionHelper = new PartitionHelper(config);
         this.config = config;
@@ -50,6 +56,10 @@ public class Processor {
         Writer<GenericData.Record> writer = null;
         try {
             WriterRef ref = getAvroWriterRef(sinkRecord);
+            //when partition value is not set for update、delete operation
+            if (null == ref) {
+                return;
+            }
             writer = writerFactory.getOrCreate(ref);
             //one connector on database
             writer.write(ValueConvertor.connectToGeneric(((AvroWriterRef)ref).getSchema(), sinkRecord));
@@ -77,6 +87,20 @@ public class Processor {
 
         List<String> sourceParCols = partitionHelper.getSourcePartitionCols(new VersionedTable(dbName, tableName, version), after);
         List<String> partitionVals = partitionHelper.buildYmdPartitionVals(sourceParCols.get(0), after);
+
+        //if partition column has no value，then partition by current time for insert, ignore for update and delete.
+        if (null == partitionVals) {
+            if (Operation.CREATE.equals(Operation.forCode(op))) {
+                partitionVals = new ArrayList<>();
+                Calendar calendar = Calendar.getInstance();
+                partitionVals.add(Integer.toString(calendar.get(Calendar.YEAR)));
+                partitionVals.add(Integer.toString(calendar.get(Calendar.MONTH)));
+                partitionVals.add(Integer.toString(calendar.get(Calendar.DAY_OF_MONTH)));
+            } else {
+                LOG.warn("no partition value found, table: {}.{}, record: {}", dbName, tableName, after);
+                return null;
+            }
+        }
 
         VersionedTable versionedTable = new VersionedTable(dbName, tableName, version);
 

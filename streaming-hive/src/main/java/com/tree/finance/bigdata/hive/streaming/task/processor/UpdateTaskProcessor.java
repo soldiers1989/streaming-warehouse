@@ -17,6 +17,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hive.hcatalog.streaming.mutate.client.TransactionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +69,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                     continue;
                 }
                 handle(task);
+                handleMoreTask(task.getTaskInfo());
             } catch (Throwable t) {
                 LOG.error("unexpected error", t);
             }
@@ -110,6 +112,10 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             LOG.info("task delay: {}", task.getTaskInfo());
             mqTaskStatusListener.onTaskDelay((RabbitMqTask) task);
             dbTaskStatusListener.onTaskDelay(task.getTaskInfo());
+        } catch (TransactionException e) {
+            updateMutation.abortTxn();
+            // if get transaction exception ignore it, let others process this task
+            LOG.warn("ignore this transaction exception， let others process this task", e);
         } catch (Throwable t) {
             LOG.error("file task failed: " + task.getTaskInfo().getFilePath(), t);
             try {
@@ -148,10 +154,11 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
     @Override
     protected void handleMoreTask(TaskInfo previousTask) {
         List<TaskInfo> moreTasks = getSameTask(previousTask);
+        LOG.info("going to handle {} more tasks", moreTasks.size());
         for (TaskInfo task : moreTasks) {
             Summary.Timer timer = MetricReporter.startUpdate();
             long startTime = System.currentTimeMillis();
-            LOG.info("file task start: {}", task.getFilePath());
+            LOG.info("additional file task start: {}", task.getFilePath());
             UpdateMutation updateMutation = new UpdateMutation(task.getDb(), task.getTbl(),
                     task.getPartitionName(), task.getPartitions(),
                     config.getMetastoreUris(), ConfigFactory.getHbaseConf());
@@ -159,7 +166,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 Path path = new Path(task.getFilePath());
                 FileSystem fileSystem = FileSystem.get(new Configuration());
                 if (!fileSystem.exists(path)) {
-                    LOG.warn("path not exist: {}", task.getFilePath());
+                    LOG.warn("additional path not exist: {}", task.getFilePath());
                     dbTaskStatusListener.onTaskSuccess(task);
                     continue;
                 }
@@ -175,13 +182,17 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 dbTaskStatusListener.onTaskSuccess(task);
                 MetricReporter.updatedBytes(bytes);
                 long endTime = System.currentTimeMillis();
-                LOG.info("file task success: {} cost: {}ms", task.getFilePath(), endTime - startTime);
+                LOG.info("additional file task success: {} cost: {}ms", task.getFilePath(), endTime - startTime);
 
+            } catch (TransactionException e) {
+                updateMutation.abortTxn();
+                // if get transaction exception ignore it, let others process this task
+                LOG.warn("ignore this transaction exception， let others process this task", e);
             } catch (DataDelayedException e) {
-                LOG.info("task delayed: {}", task);
+                LOG.info("additional task delayed: {}", task);
                 dbTaskStatusListener.onTaskDelay(task);
             } catch (Throwable t) {
-                LOG.error("file task failed: " + task.getFilePath(), t);
+                LOG.error("additional file task failed: " + task.getFilePath(), t);
                 try {
                     dbTaskStatusListener.onTaskError(task);
                     updateMutation.abortTxn();

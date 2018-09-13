@@ -116,7 +116,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 for (TaskInfo sameTask : moreTasks) {
                     if (processed.size() >= greedyCount) {
                         mutationUtils.commitTransaction();
-                        LOG.info("processed {} tasks, committed as a batch", processed.size());
+                        LOG.info("processed {} additional tasks, committed as a batch", processed.size());
                         dbTaskStatusListener.onTaskSuccess(processed);
                         mutationUtils = new InsertMutation(task.getDb(),
                                 task.getTbl(), task.getPartitionName(),
@@ -125,10 +125,10 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                     }
                     try {
                         handleTask(mutationUtils, sameTask);
-                        LOG.info("file task success in batch: {}", sameTask.getFilePath());
+                        LOG.info("additional task success in batch: {}", sameTask.getFilePath());
                     } catch (Exception e) {
                         errorTask = sameTask;
-                        LOG.error("failed to process task: {}", errorTask, e);
+                        LOG.error("additional task failed: {}", errorTask, e);
                         throw new RuntimeException("task failed in batch");
                     }
                     processed.add(sameTask);
