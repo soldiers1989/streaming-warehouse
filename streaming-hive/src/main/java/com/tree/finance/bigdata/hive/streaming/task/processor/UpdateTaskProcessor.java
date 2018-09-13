@@ -135,10 +135,10 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
         }
     }
 
-    public void handleMysqlTask(MysqlTask task) {
+    public void handleDelayTask(MysqlTask task) {
         Summary.Timer timer = MetricReporter.startUpdate();
         long startTime = System.currentTimeMillis();
-        LOG.info("file task start: {}", task.getTaskInfo().getFilePath());
+        LOG.info("mysql file task start: {}", task.getTaskInfo().getFilePath());
         UpdateMutation updateMutation = new UpdateMutation(task.getTaskInfo().getDb(), task.getTaskInfo().getTbl(),
                 task.getTaskInfo().getPartitionName(), task.getTaskInfo().getPartitions(),
                 config.getMetastoreUris(), ConfigFactory.getHbaseConf());
@@ -162,11 +162,11 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
             MetricReporter.updatedBytes(bytes);
             long endTime = System.currentTimeMillis();
-            LOG.info("file task success: {} cost: {}ms", task.getTaskInfo().getFilePath(), endTime - startTime);
+            LOG.info("mysql file task success: {} cost: {}ms", task.getTaskInfo().getFilePath(), endTime - startTime);
 
         } catch (DataDelayedException e) {
-            LOG.info("task delay: {}", task.getTaskInfo());
-            dbTaskStatusListener.onTaskDelay(task.getTaskInfo());
+            //no need to update task status to delay again
+            LOG.info("task delay again: {}", task.getTaskInfo());
         } catch (TransactionException e) {
             updateMutation.abortTxn();
             // if get transaction exception ignore it, let others process this task

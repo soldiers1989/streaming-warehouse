@@ -52,6 +52,7 @@ public class TaskGenerator implements Service {
                 if (CollectionUtils.isEmpty(consumedTask)) {
                     continue;
                 }
+                LOG.info("going to dispatch {} delayed task", consumedTask.size());
                 for (MysqlTask mysqlTask : consumedTask) {
                     dispatcher.dispatch(mysqlTask);
                 }

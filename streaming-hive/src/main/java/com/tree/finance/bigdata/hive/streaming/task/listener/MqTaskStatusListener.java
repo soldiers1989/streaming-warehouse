@@ -14,18 +14,11 @@ import java.util.List;
  */
 public class MqTaskStatusListener implements TaskStatusListener<RabbitMqTask> {
 
-    private AppConfig config;
-
-    public MqTaskStatusListener(AppConfig config) {
-        this.config = config;
-    }
-
     private static Logger LOG = LoggerFactory.getLogger(MqTaskStatusListener.class);
 
     @Override
     public void onTaskSuccess(RabbitMqTask rabbitMqTask) {
         try {
-            TaskStatusListener.doWithTaskFile(rabbitMqTask.getTaskInfo().getFilePath());
             rabbitMqTask.getChannelMsg().getChannel().basicAck(rabbitMqTask.getChannelMsg().getMsg().getEnvelope().getDeliveryTag(),
                     false);
         } catch (Exception e) {

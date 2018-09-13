@@ -9,7 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-import static com.tree.finance.bigdata.hive.streaming.config.Constants.FILE_PROCESSED_SUFIX;
+import static com.tree.finance.bigdata.hive.streaming.config.Constants.FILE_ERROR_SUFFIX;
+import static com.tree.finance.bigdata.hive.streaming.config.Constants.FILE_PROCESSED_SUFFIX;
 
 /**
  * @author Zhengsj
@@ -19,6 +20,7 @@ import static com.tree.finance.bigdata.hive.streaming.config.Constants.FILE_PROC
 public interface TaskStatusListener<T> {
 
     Logger LOG = LoggerFactory.getLogger(TaskStatusListener.class);
+
 
     void onTaskSuccess(T t);
 
@@ -32,7 +34,7 @@ public interface TaskStatusListener<T> {
 
     void onTaskRetry(List<T> tasks);
 
-    static void doWithTaskFile(String filePath) {
+    static void taskFileOnSuccess(String filePath) {
         try {
             if (ConfigHolder.getConfig().deleteAvroOnSuccess()) {
                 Configuration conf = new Configuration();
@@ -44,14 +46,28 @@ public interface TaskStatusListener<T> {
             } else {
                 Configuration conf = new Configuration();
                 FileSystem fs = FileSystem.get(conf);
-                if (!fs.exists(new Path(filePath))){
+                if (!fs.exists(new Path(filePath))) {
                     return;
                 }
-                Path newPath = new Path(filePath + FILE_PROCESSED_SUFIX);
+                Path newPath = new Path(filePath + FILE_PROCESSED_SUFFIX);
                 fs.rename(new Path(filePath), newPath);
             }
         } catch (Exception e) {
             LOG.error("may cause data inaccuracy, failed to rename or delete processed file: {}", filePath, e);
+        }
+    }
+
+    static void taskFileOnError(String filePath) {
+        try {
+            Configuration conf = new Configuration();
+            FileSystem fs = FileSystem.get(conf);
+            if (!fs.exists(new Path(filePath))) {
+                return;
+            }
+            Path newPath = new Path(filePath + FILE_ERROR_SUFFIX);
+            fs.rename(new Path(filePath), newPath);
+        } catch (Exception e) {
+            LOG.error("may cause data inaccuracy, failed to rename or delete error file: {}", filePath, e);
         }
     }
 }

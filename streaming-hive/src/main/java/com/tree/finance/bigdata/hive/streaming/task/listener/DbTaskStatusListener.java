@@ -33,7 +33,7 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
 
     @Override
     public void onTaskSuccess(TaskInfo taskInfo) {
-        TaskStatusListener.doWithTaskFile(taskInfo.getFilePath());
+        TaskStatusListener.taskFileOnSuccess(taskInfo.getFilePath());
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {
 
@@ -60,14 +60,13 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
         if (null == taskInfo) {
             return;
         }
-        TaskStatusListener.doWithTaskFile(taskInfo.getFilePath());
+        TaskStatusListener.taskFileOnError(taskInfo.getFilePath());
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {
             StringBuilder sb = new StringBuilder("update ")
                     .append(ConfigHolder.getConfig().getTaskTleName())
                     .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.FAIL).append(SQL_VALUE_QUOTE)
                     .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
-            TaskStatusListener.doWithTaskFile(taskInfo.getFilePath());
             stmt.executeUpdate(sb.toString());
         } catch (Exception e) {
             LOG.error("failed to update failed task", e);
@@ -83,7 +82,6 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
                 .append(ConfigHolder.getConfig().getTaskTleName())
                 .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.DELAY).append(SQL_VALUE_QUOTE)
                 .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
-        TaskStatusListener.doWithTaskFile(taskInfo.getFilePath());
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.executeUpdate(sb.toString());
@@ -100,7 +98,7 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
     @Override
     public void onTaskSuccess(List<TaskInfo> tasks) {
         for (TaskInfo taskInfo : tasks) {
-            TaskStatusListener.doWithTaskFile(taskInfo.getFilePath());
+            TaskStatusListener.taskFileOnSuccess(taskInfo.getFilePath());
         }
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {

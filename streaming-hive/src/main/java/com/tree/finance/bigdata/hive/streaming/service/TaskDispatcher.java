@@ -2,7 +2,6 @@ package com.tree.finance.bigdata.hive.streaming.service;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
-import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
 import com.tree.finance.bigdata.hive.streaming.task.processor.InsertTaskProcessor;
@@ -78,7 +77,7 @@ public class TaskDispatcher implements Service {
         if (Operation.CREATE.equals(consumedTask.getTaskInfo().getOp())) {
             insertExecutor[0].handleMysqlTask(consumedTask);
         } else if (Operation.UPDATE.equals(consumedTask.getTaskInfo().getOp()) || Operation.DELETE.equals(consumedTask.getTaskInfo().getOp())) {
-            updateExecutor[0].handleMysqlTask(consumedTask);
+            updateExecutor[0].handleDelayTask(consumedTask);
         } else {
             LOG.error("unsupported task type: {}", consumedTask.getTaskInfo());
             consumedTask.taskRejected();
