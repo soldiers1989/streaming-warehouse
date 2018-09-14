@@ -118,25 +118,29 @@ public class SchemaConvertor {
         // Extra type annotation information for otherwise lossy conversions
         String connectType = null;
 
-        final org.apache.avro.Schema baseSchema;
+        org.apache.avro.Schema baseSchema;
         
         switch (schema.type()) {
             case INT8:
                 connectType = CONNECT_TYPE_INT8;
-                baseSchema = org.apache.avro.SchemaBuilder.builder().intType();
+//                baseSchema = org.apache.avro.SchemaBuilder.builder().intType();
+                baseSchema = org.apache.avro.SchemaBuilder.builder().longType();
                 break;
             case INT16:
                 connectType = CONNECT_TYPE_INT16;
-                baseSchema = org.apache.avro.SchemaBuilder.builder().intType();
+//                baseSchema = org.apache.avro.SchemaBuilder.builder().intType();
+                baseSchema = org.apache.avro.SchemaBuilder.builder().longType();
                 break;
             case INT32:
-                baseSchema = org.apache.avro.SchemaBuilder.builder().intType();
+//                baseSchema = org.apache.avro.SchemaBuilder.builder().intType();
+                baseSchema = org.apache.avro.SchemaBuilder.builder().longType();
                 break;
             case INT64:
                 baseSchema = org.apache.avro.SchemaBuilder.builder().longType();
                 break;
             case FLOAT32:
-                baseSchema = org.apache.avro.SchemaBuilder.builder().floatType();
+//                baseSchema = org.apache.avro.SchemaBuilder.builder().floatType();
+                baseSchema = org.apache.avro.SchemaBuilder.builder().doubleType();
                 break;
             case FLOAT64:
                 baseSchema = org.apache.avro.SchemaBuilder.builder().doubleType();
@@ -168,7 +172,7 @@ public class SchemaConvertor {
             case BYTES:
                 baseSchema = org.apache.avro.SchemaBuilder.builder().bytesType();
                 if (Decimal.LOGICAL_NAME.equalsIgnoreCase(schema.name())) {
-                    int scale = Integer.parseInt(schema.parameters().get(Decimal.SCALE_FIELD));
+                    /*int scale = Integer.parseInt(schema.parameters().get(Decimal.SCALE_FIELD));
                     baseSchema.addProp(AVRO_LOGICAL_DECIMAL_SCALE_PROP, new IntNode(scale));
                     if (schema.parameters().containsKey(CONNECT_AVRO_DECIMAL_PRECISION_PROP)) {
                         String precisionValue = schema.parameters().get(CONNECT_AVRO_DECIMAL_PRECISION_PROP);
@@ -178,7 +182,8 @@ public class SchemaConvertor {
                         baseSchema
                                 .addProp(AVRO_LOGICAL_DECIMAL_PRECISION_PROP,
                                         new IntNode(CONNECT_AVRO_DECIMAL_PRECISION_DEFAULT));
-                    }
+                    }*/
+                    baseSchema = org.apache.avro.SchemaBuilder.builder().doubleType();
                 }
                 break;
             case ARRAY:

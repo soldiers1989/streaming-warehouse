@@ -29,7 +29,7 @@ public class RabbitMqTask implements ConsumedTask {
 
     @Override
     public void taskRejected() {
-        new MqTaskStatusListener(ConfigHolder.getConfig()).onTaskError(this);
+        new MqTaskStatusListener().onTaskError(this);
     }
 
     public ChannelMsg getChannelMsg() {

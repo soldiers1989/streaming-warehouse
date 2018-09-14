@@ -36,23 +36,27 @@ public class ValueConvertor {
         } else {
             afterStruct = (Struct) value.get(FIELD_AFTER);
         }
-        GenericRecordBuilder afterBuilder = getAfterRecordBuilder(avroFileSchema, afterStruct);
+        GenericRecordBuilder afterBuilder = getRecordBuilder(avroFileSchema.getField(FIELD_AFTER).schema(), afterStruct);
+
         //id
-        GenericRecordBuilder keyBuilder = new GenericRecordBuilder(avroFileSchema.getField(FIELD_KEY).schema());
+        /*GenericRecordBuilder keyBuilder = new GenericRecordBuilder(avroFileSchema.getField(FIELD_KEY).schema());
         Struct key = (Struct) sinkRecord.key();
         key.schema().fields().forEach(field ->
                 //change to lowercase
                 keyBuilder.set(field.name().toLowerCase(), key.get(field))
-        );
-        GenericRecordBuilder builder = new GenericRecordBuilder(avroFileSchema);
+        );*/
+        GenericRecordBuilder keyBuilder = getRecordBuilder(avroFileSchema.getField(FIELD_KEY).schema(),
+                (Struct) sinkRecord.key());
+
+                GenericRecordBuilder builder = new GenericRecordBuilder(avroFileSchema);
         builder.set(FIELD_AFTER, afterBuilder.build());
         builder.set(FIELD_OP, op.code());
         builder.set(FIELD_KEY, keyBuilder.build());
         return builder.build();
     }
 
-    private static GenericRecordBuilder getAfterRecordBuilder(Schema schema, Struct afterStruct) {
-        GenericRecordBuilder afterBuilder = new GenericRecordBuilder(schema.getField(FIELD_AFTER).schema());
+    private static GenericRecordBuilder getRecordBuilder(Schema avroSchema, Struct afterStruct) {
+        GenericRecordBuilder builder = new GenericRecordBuilder(avroSchema);
 
         for (Field field : afterStruct.schema().fields()) {
             if (afterStruct.get(field.name()) == null) {
@@ -68,7 +72,7 @@ public class ValueConvertor {
                         //change to cst timezone
                         calendar.add(Calendar.HOUR, -8);
                         long unixMillis = calendar.getTimeInMillis();
-                        afterBuilder.set(field.name().toLowerCase(), (int) (unixMillis / 86400000L));
+                        builder.set(field.name().toLowerCase(), (int) (unixMillis / 86400000L));
                         continue;
                     }
                 }
@@ -82,7 +86,7 @@ public class ValueConvertor {
                         //change to cst timezone
                         calendar.add(Calendar.HOUR, -8);
                         long unixMillis = calendar.getTimeInMillis();
-                        afterBuilder.set(field.name().toLowerCase(), unixMillis);
+                        builder.set(field.name().toLowerCase(), unixMillis);
                         continue;
                     }
                 }
@@ -90,23 +94,43 @@ public class ValueConvertor {
                 //Decimal LogicalType
                 if (field.schema().name().equalsIgnoreCase(Decimal.LOGICAL_NAME)) {
                     BigDecimal decimal = ((BigDecimal) afterStruct.get(field.name()));
-                    afterBuilder.set(field.name().toLowerCase(), ByteBuffer.wrap(decimal.unscaledValue().toByteArray()));
+                    if (null != decimal) {
+//                    afterBuilder.set(field.name().toLowerCase(), ByteBuffer.wrap(decimal.unscaledValue().toByteArray()));
+                        builder.set(field.name().toLowerCase(), decimal.doubleValue());
+                    }
                     continue;
                 }
 
             }
 
             //convert kafka connect's data type short to Avro int
-            if (field.schema().type().equals(Type.INT16)) {
+            if (field.schema().type().equals(Type.INT8)) {
                 if (null != afterStruct.get(field.name())) {
                     //change field name to lowercase letter
-                    afterBuilder.set(field.name().toLowerCase(), ((Short) afterStruct.get(field.name())).intValue());
+//                    afterBuilder.set(field.name().toLowerCase(), ((Short) afterStruct.get(field.name())).intValue());
+                    builder.set(field.name().toLowerCase(), Long.valueOf((Integer) afterStruct.get(field.name())));
+                }
+            } else if (field.schema().type().equals(Type.INT16)) {
+                if (null != afterStruct.get(field.name())) {
+                    //change field name to lowercase letter
+//                    afterBuilder.set(field.name().toLowerCase(), ((Short) afterStruct.get(field.name())).intValue());
+                    builder.set(field.name().toLowerCase(), Long.valueOf((Short) afterStruct.get(field.name())));
+                }
+            } else if (field.schema().type().equals(Type.INT32)) {
+                if (null != afterStruct.get(field.name())) {
+                    //change field name to lowercase letter
+                    builder.set(field.name().toLowerCase(), Long.valueOf((Integer) afterStruct.get(field.name())));
+                }
+            } else if (field.schema().type().equals(Type.FLOAT32)) {
+                if (null != afterStruct.get(field.name())) {
+                    //change field name to lowercase letter
+                    builder.set(field.name().toLowerCase(), Double.valueOf((float) afterStruct.get(field.name())));
                 }
             } else {
                 //change field name to lowercase letter
-                afterBuilder.set(field.name().toLowerCase(), afterStruct.get(field.name()));
+                builder.set(field.name().toLowerCase(), afterStruct.get(field.name()));
             }
         }
-        return afterBuilder;
+        return builder;
     }
 }

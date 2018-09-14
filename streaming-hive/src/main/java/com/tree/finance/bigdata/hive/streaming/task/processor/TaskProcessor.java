@@ -38,7 +38,7 @@ public abstract class TaskProcessor {
     TaskProcessor(AppConfig config, ConnectionFactory factory){
         this.config = config;
         this.factory = factory;
-        this.mqTaskStatusListener = new MqTaskStatusListener(config);
+        this.mqTaskStatusListener = new MqTaskStatusListener();
         this.dbTaskStatusListener = new DbTaskStatusListener(factory);
     }
 
