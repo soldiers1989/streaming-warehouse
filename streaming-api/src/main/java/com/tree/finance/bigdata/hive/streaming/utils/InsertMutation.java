@@ -18,8 +18,6 @@ import java.util.List;
  */
 public class InsertMutation extends Mutation {
 
-    private static Logger LOG = LoggerFactory.getLogger(InsertMutation.class);
-
     public InsertMutation(String db, String table, String partition, List<String> partitions, String metastoreUris, Configuration hbaseConf) {
         super(db, table, partition, partitions, metastoreUris, hbaseConf);
     }
@@ -37,8 +35,7 @@ public class InsertMutation extends Mutation {
                 this.latestUpdateTime = recordUpdateTime;
             }
         }
-        String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(SchemaConstants.FIELD_KEY).schema())
-                + dbTblSuffix;
+        String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(SchemaConstants.FIELD_KEY).schema());
 
         if (checkExist) {
             Long hbaseUpdateTime = hbaseUtils.getLong(businessId, columnFamily, updateTimeColIdentifier);

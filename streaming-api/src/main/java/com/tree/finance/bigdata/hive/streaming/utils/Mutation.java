@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
+import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_RECORDID_TBL_SUFFIX;
+
 /**
  * @author Zhengsj
  * Description:
@@ -58,8 +60,6 @@ public abstract class Mutation {
 
     protected Schema recordSchema;
 
-    protected String dbTblSuffix;
-
     protected HbaseUtils hbaseUtils;
 
     protected Configuration hbaseConf;
@@ -79,7 +79,6 @@ public abstract class Mutation {
         this.table = table;
         this.partition = partition;
         this.partitions = partitions;
-        this.dbTblSuffix = "_" + db + "." + table;
         this.hbaseConf = hbaseConf;
     }
 
@@ -192,7 +191,7 @@ public abstract class Mutation {
                 .build();
         this.transactionId = mutateTransaction.getTransactionId();
         if (null == this.hbaseUtils) {
-            this.hbaseUtils = HbaseUtils.getTableInstance(ConfigFactory.getHbaseRecordIdTbl(), hbaseConf);
+            this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
         }
         this.initialized = true;
     }

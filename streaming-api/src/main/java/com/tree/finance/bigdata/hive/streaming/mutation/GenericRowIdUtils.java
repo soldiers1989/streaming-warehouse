@@ -16,6 +16,8 @@ public class GenericRowIdUtils {
 
     public static final String FILTER = "__dbz__";
 
+    public static final int HASH_MODE = 10;
+
     public static String assembleBuizId(GenericRecord keyRecord, Schema idSchema){
         StringBuilder sb = new StringBuilder();
         for (Schema.Field field : idSchema.getFields()){
@@ -25,12 +27,16 @@ public class GenericRowIdUtils {
             sb.append(keyRecord.get(field.name())).append('_');
         }
         if (sb.length() > 1){
-            return sb.deleteCharAt(sb.length() -1 ).toString();
+            return addIdWithHash(sb.deleteCharAt(sb.length() -1 ).toString());
         }else {
             //todo 无主键表如何处理
             LOG.error("no primary key found");
             throw new RuntimeException("not primary key found");
         }
+    }
+
+    public static String addIdWithHash(String id){
+        return (id.hashCode() % HASH_MODE) + "_" + id;
     }
 
 }

@@ -3,6 +3,7 @@ package com.tree.finance.bigdata.hive.streaming.cli;
 import com.tree.finance.bigdata.hive.streaming.config.Constants;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
+import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.RecordUtils;
 import com.tree.finance.bigdata.utils.common.CollectionUtils;
@@ -39,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_CONF_FILE;
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_PASSWORD;
+import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_RECORDID_TBL_SUFFIX;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.BUCKET_COUNT;
 
 /**
@@ -62,6 +64,7 @@ public class RecordIdLoaderTools {
     private byte[] columnFamily;
     private byte[] recordIdentifier;
     private byte[] updateTimeIdentifier;
+    private int totalPartitions = 0;
 
     private static String CONJECT = "_";
     private Logger LOG = LoggerFactory.getLogger(RecordIdLoaderTools.class);
@@ -85,7 +88,6 @@ public class RecordIdLoaderTools {
         prepare(iMetaStoreClient);
         PartitionSpecProxy proxy = iMetaStoreClient.listPartitionSpecs(db, table, Integer.MAX_VALUE);
         Iterator<Partition> iterator = proxy.getPartitionIterator();
-        int totalPartitions = 0;
         FileSystem fs = FileSystem.get(new Configuration());
         while (iterator.hasNext()) {
             String path = iterator.next().getSd().getLocation();
@@ -184,14 +186,15 @@ public class RecordIdLoaderTools {
                 InputSplit[] inputSplits = inputFormat.getSplits(jobConf, 1);
                 AcidInputFormat.Options options = new AcidInputFormat.Options(conf);
 
-                HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(ConfigFactory.getHbaseRecordIdTbl(), ConfigFactory.getHbaseConf());
+                HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX,
+                        ConfigFactory.getHbaseConf(), true);
+
                 for (InputSplit inputSplit : inputSplits) {
                     AcidInputFormat.RowReader<OrcStruct> inner = inputFormat.getReader(inputSplit, options);
                     RecordIdentifier identifier = inner.createKey();
                     OrcStruct value = inner.createValue();
                     StringBuilder idSb = new StringBuilder();
                     StringBuilder busiIdSb = new StringBuilder();
-                    String dbTblSuffix = "_" + db + "." + table;
                     while (inner.next(identifier, value)) {
                         //RecordId
                         idSb.delete(0, idSb.length());
@@ -203,7 +206,7 @@ public class RecordIdLoaderTools {
                         for (Integer keyIndex : primaryKeyIndex) {
                             busiIdSb.append(value.getFieldValue(keyIndex)).append(CONJECT);
                         }
-                        String rowKey = busiIdSb.deleteCharAt(busiIdSb.length() - 1).append(dbTblSuffix).toString();
+                        String rowKey =GenericRowIdUtils.addIdWithHash(busiIdSb.deleteCharAt(busiIdSb.length() - 1).toString());
 
                         Long updateTime = RecordUtils.getFieldAsTimeMillis(value.getFieldValue(updateTimeIndex));
                         Put put = new Put(Bytes.toBytes(rowKey));
@@ -213,10 +216,10 @@ public class RecordIdLoaderTools {
                     }
                 }
                 hbaseUtils.close();
-                System.out.println("finished task " + finishedTasks.incrementAndGet());
+                System.out.println(String.format("%s finished %.2f", table, (finishedTasks.incrementAndGet()* 1.0) / totalPartitions));
             } catch (Exception e) {
-                LOG.error("", e);
-                System.out.println("failed to load: " + path);
+                LOG.error("failed to load: {}", path, e);
+                System.out.println("ERROR: failed to load: " + path);
             }
 
         }

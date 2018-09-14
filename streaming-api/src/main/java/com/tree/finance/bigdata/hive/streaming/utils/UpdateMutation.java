@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_RECORDID_TBL_SUFFIX;
 import static com.tree.finance.bigdata.schema.SchemaConstants.FIELD_KEY;
 
 /**
@@ -46,13 +47,11 @@ public class UpdateMutation extends Mutation {
     public void update(GenericData.Record record, boolean ignoreNotExist) throws Exception {
 
         if (this.hbaseUtils == null) {
-            this.hbaseUtils = HbaseUtils.getTableInstance(ConfigFactory.getHbaseRecordIdTbl(), hbaseConf);
+            this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
         }
         GenericData.Record keyRecord = (GenericData.Record) record.get(FIELD_KEY);
 
         String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(FIELD_KEY).schema());
-
-        businessId = businessId + dbTblSuffix;
 
         Object[] idAndTime = hbaseUtils.getAsBytes(businessId, columnFamily, recordIdColIdentifier, updateTimeColIdentifier);
 

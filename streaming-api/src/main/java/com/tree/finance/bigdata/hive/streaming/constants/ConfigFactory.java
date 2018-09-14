@@ -72,10 +72,6 @@ public class ConfigFactory {
         return properties.getProperty(Constants.KEY_HBASE_ZOOKEEPER_QUORUM);
     }
 
-    public static String getHbaseRecordIdTbl() {
-        return properties.getProperty(Constants.KEY_HBASE_RECORDID_TBL);
-    }
-
     public static String getSysConfHbaseTbl() {
         return properties.contains(Constants.KEY_HBASE_SYS_CONF_TBL) ?
         properties.getProperty(Constants.KEY_HBASE_SYS_CONF_TBL) : "streaming_warehouse_system_conf";

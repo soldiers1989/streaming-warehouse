@@ -80,7 +80,6 @@ public class RecIdObjectInspector extends StructObjectInspector {
             }
             if (fieldRef.getFieldName().equals(FIELD_NAME_ROWID) || fieldRef.getFieldName().equals(FIELD_NAME_ORIGINAL_TXN_FIELD)) {
                 String businessId = GenericRowIdUtils.assembleBuizId((GenericData.Record) data, idSchema);
-                businessId = businessId + dbTableSuffix;
                 String rowId = hbaseUtils.getString(businessId, defaultFamily, defaultRowIdQualifier);
                 String[] rowIds = rowId.split("_");
                 if (fieldRef.getFieldName().equals(FIELD_NAME_ROWID)){

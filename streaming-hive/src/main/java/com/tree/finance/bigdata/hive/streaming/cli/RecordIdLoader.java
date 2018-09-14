@@ -37,10 +37,14 @@ public class RecordIdLoader {
             IMetaStoreClient iMetaStoreClient = new HiveMetaStoreClient(hiveConf);
             List<String> tables = iMetaStoreClient.getAllTables(parser.getDb());
             for (String table : tables) {
-                new RecordIdLoaderTools(parser.getDb(), table, parser.getCores()).load();
+                try {
+                    new RecordIdLoaderTools(parser.getDb(), table, parser.getCores()).load();
+                } catch (Exception e) {
+                    System.out.println("ERROR: failed to load table: " + table);
+                }
             }
             iMetaStoreClient.close();
-        }else {
+        } else {
             new RecordIdLoaderTools(parser.getDb(), parser.getTable(), parser.getCores()).load();
         }
 

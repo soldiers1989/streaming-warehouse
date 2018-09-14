@@ -31,7 +31,7 @@ public class HbaseUtils {
     private List<Put> buffer;
     private Table htable;
 
-    private HbaseUtils(String tableName, Configuration config) throws IOException {
+    private HbaseUtils(String tableName, Configuration config, boolean create) throws IOException {
         this.buffer = new ArrayList<>();
         this.batchSize = config.getInt(KEY_HBASE_INSERT_BATCH_SIZE, 500);
         if (connection == null) {
@@ -42,6 +42,11 @@ public class HbaseUtils {
                 }
             }
         }
+        if (create) {
+            synchronized (HbaseUtils.class) {
+                createTale(tableName, "f");
+            }
+        }
         this.htable = connection.getTable(TableName.valueOf(tableName));
     }
 
@@ -49,7 +54,14 @@ public class HbaseUtils {
         if (StringUtils.isEmpty(tableName)) {
             throw new RuntimeException(KEY_HBASE_TABLE_NAME + " is not set");
         }
-        return new HbaseUtils(tableName, conf);
+        return new HbaseUtils(tableName, conf, false);
+    }
+
+    public static HbaseUtils getTableInstance(String tableName, Configuration conf, boolean create) throws Exception {
+        if (StringUtils.isEmpty(tableName)) {
+            throw new RuntimeException(KEY_HBASE_TABLE_NAME + " is not set");
+        }
+        return new HbaseUtils(tableName, conf, create);
     }
 
     public String getString(String rowKey, byte[] family, byte[] col) {
@@ -121,12 +133,18 @@ public class HbaseUtils {
         }
     }
 
-    public static void createTale(String tableName, String... clomnFamily) throws Exception {
+    public static void createTale(String tableName, String familyStr) throws IOException {
         HTableDescriptor table = new HTableDescriptor(TableName.valueOf(tableName));
-        HColumnDescriptor family = new HColumnDescriptor(("f").getBytes());
+        table.setCompactionEnabled(true);
+        HColumnDescriptor family = new HColumnDescriptor(Bytes.toBytes(familyStr));
         table.addFamily(family);
         Admin admin = connection.getAdmin();
-        admin.createTable(table);
+        if (!admin.tableExists(TableName.valueOf(tableName))) {
+            LOG.info("created not exist table: {}", tableName);
+            admin.createTable(table);
+        } else {
+            LOG.info("table exist {}", tableName);
+        }
         admin.close();
     }
 
