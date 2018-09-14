@@ -69,10 +69,11 @@ public class AvroObjectInspector extends StructObjectInspector {
                 return new LogicalDateObjectInspector();
             }
             if (logicalType.equalsIgnoreCase(LogicalType.Decimal.value())) {
-                int scale = fieldShema.getJsonProp(PROP_KEY_SCALE).getIntValue();
+                /*int scale = fieldShema.getJsonProp(PROP_KEY_SCALE).getIntValue();
                 int precision = null == fieldShema.getJsonProp(PROP_KEY_PRECISION) ?
                         null : fieldShema.getJsonProp(PROP_KEY_PRECISION).getIntValue();
-                return new LogicalDecimalObjectInspector(scale, precision);
+                return new LogicalDecimalObjectInspector(scale, precision);*/
+                return PrimitiveObjectInspectorFactory.javaDoubleObjectInspector;
             }
             if (logicalType.equalsIgnoreCase(LogicalType.TimeStampMillis.value())) {
                 return new TimeMillisObjectInspector();

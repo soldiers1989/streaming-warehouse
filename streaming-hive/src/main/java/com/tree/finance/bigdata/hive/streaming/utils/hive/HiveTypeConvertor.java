@@ -14,6 +14,7 @@ public class HiveTypeConvertor {
     private static final String HIVE_TYPE_STRING = "STRING";
     private static final String HIVE_TYPE_BIGINT = "BIGINT";
     private static final String HIVE_TYPE_TIMESTAMP = "TIMESTAMP";
+    private static final String HIVE_TYPE_DOUBLE = "DOUBLE";
 
     public static String toHiveType(String rawSqlType) {
 
@@ -35,20 +36,21 @@ public class HiveTypeConvertor {
             sqlType = m2.group(1);
         }
 
-        //convert to int
+        //convert to Long
         if(sqlType.equalsIgnoreCase(MysqlType.MEDIUMINT.name())) {
-            return HIVE_TYPE_INT;
+            return HIVE_TYPE_BIGINT;
         }
         if(sqlType.equalsIgnoreCase(MysqlType.TINYINT.name())) {
-            return HIVE_TYPE_INT;
+            return HIVE_TYPE_BIGINT;
         }
         if(sqlType.equalsIgnoreCase(MysqlType.SMALLINT.name())) {
-            return HIVE_TYPE_INT;
+            return HIVE_TYPE_BIGINT;
         }
         if (sqlType.equalsIgnoreCase(MysqlType.INT.name())) {
-            if (rawSqlType.toLowerCase().contains("unsigned")) {
+            return HIVE_TYPE_BIGINT;
+            /*if (rawSqlType.toLowerCase().contains("unsigned")) {
                 return HIVE_TYPE_BIGINT;
-            }
+            }*/
         }
         //convert to string
         if (sqlType.equalsIgnoreCase(MysqlType.VARCHAR.name())) {
@@ -70,9 +72,10 @@ public class HiveTypeConvertor {
         if (sqlType.equalsIgnoreCase(MysqlType.MEDIUMTEXT.name())) {
             return HIVE_TYPE_STRING;
         }
-        //BigDecimal
+        //BigDecimal to Double
         if (sqlType.equalsIgnoreCase(MysqlType.DECIMAL.name())) {
-            return rawSqlType.toLowerCase().replaceAll("unsigned", "");
+//            return rawSqlType.toLowerCase().replaceAll("unsigned", "");
+            return HIVE_TYPE_DOUBLE;
         }
         //datetime
         if (sqlType.equalsIgnoreCase(MysqlType.DATETIME.name())) {
