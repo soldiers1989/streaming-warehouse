@@ -95,13 +95,16 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 return;
             }
             Long bytes = fileSystem.getFileStatus(path).getLen();
-            AvroFileReader reader = new AvroFileReader(path);
-            Schema recordSchema = reader.getSchema();
-            updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
-            while (reader.hasNext()) {
-                GenericData.Record record = reader.next();
-                updateMutation.update(record, false);
+
+            try (AvroFileReader reader = new AvroFileReader(path)) {
+                Schema recordSchema = reader.getSchema();
+                updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
+                while (reader.hasNext()) {
+                    GenericData.Record record = reader.next();
+                    updateMutation.update(record, false);
+                }
             }
+
             updateMutation.commitTransaction();
             mqTaskStatusListener.onTaskSuccess((RabbitMqTask) task);
             dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
@@ -151,12 +154,13 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 return;
             }
             Long bytes = fileSystem.getFileStatus(path).getLen();
-            AvroFileReader reader = new AvroFileReader(path);
-            Schema recordSchema = reader.getSchema();
-            updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
-            while (reader.hasNext()) {
-                GenericData.Record record = reader.next();
-                updateMutation.update(record, false);
+            try (AvroFileReader reader = new AvroFileReader(path);) {
+                Schema recordSchema = reader.getSchema();
+                updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
+                while (reader.hasNext()) {
+                    GenericData.Record record = reader.next();
+                    updateMutation.update(record, false);
+                }
             }
             updateMutation.commitTransaction();
             dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
@@ -225,12 +229,13 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                     continue;
                 }
                 Long bytes = fileSystem.getFileStatus(path).getLen();
-                AvroFileReader reader = new AvroFileReader(path);
-                Schema recordSchema = reader.getSchema();
-                updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
-                while (reader.hasNext()) {
-                    GenericData.Record record = reader.next();
-                    updateMutation.update(record, false);
+                try (AvroFileReader reader = new AvroFileReader(path);) {
+                    Schema recordSchema = reader.getSchema();
+                    updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
+                    while (reader.hasNext()) {
+                        GenericData.Record record = reader.next();
+                        updateMutation.update(record, false);
+                    }
                 }
                 updateMutation.commitTransaction();
                 dbTaskStatusListener.onTaskSuccess(task);

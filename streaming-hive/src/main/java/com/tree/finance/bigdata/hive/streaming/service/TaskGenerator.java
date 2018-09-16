@@ -50,6 +50,7 @@ public class TaskGenerator implements Service {
                 Thread.sleep(ConfigHolder.getConfig().getDelayScheduleMin() * 60 * 1000);
                 List<MysqlTask> consumedTask = mysqlTaskConsumer.consumeBatch();
                 if (CollectionUtils.isEmpty(consumedTask)) {
+                    LOG.info("no delayed tasks");
                     continue;
                 }
                 LOG.info("going to dispatch {} delayed task", consumedTask.size());

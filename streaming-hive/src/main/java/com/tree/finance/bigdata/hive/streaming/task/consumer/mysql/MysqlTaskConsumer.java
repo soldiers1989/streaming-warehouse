@@ -45,6 +45,7 @@ public class MysqlTaskConsumer implements TaskConsumer<MysqlTask> {
                 result.add(new MysqlTask(new TaskInfo(id, db, table, partitions, parName, filePath, op)));
             }
         } catch (Exception e) {
+            LOG.error("failed to execute: {}", sb.toString(), e);
             return null;
         }
         return result;
