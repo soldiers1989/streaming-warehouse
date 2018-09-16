@@ -78,4 +78,18 @@
         </repository>
     </repositories>
 
+    <distributionManagement>
+        <repository>
+            <id>Releases</id>
+            <name>Internal Release Repository</name>
+            <url>http://192.168.5.252:8081/nexus/content/repositories/releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>Snapshots</id>
+            <name>Internal Snapshot Repository</name>
+            <url>http://192.168.5.252:8081/nexus/content/repositories/snapshots/
+            </url>
+        </snapshotRepository>
+    </distributionManagement>
+
 </project>
