@@ -61,7 +61,7 @@ public class FileManager {
     public void init() {
         this.connectionFactory = new ConnectionFactory.Builder().jdbcUrl(sinkConfig.getTaskDbUrl())
                 .user(sinkConfig.getTaskDbUser()).password(sinkConfig.getTaskDbPassword())
-                .acquireIncrement(3).maxPollSize(10).minPollSize(1).initialPoolSize(1).build();
+                .acquireIncrement(1).maxPollSize(1).minPollSize(1).initialPoolSize(1).build();
         this.thread.start();
     }
 

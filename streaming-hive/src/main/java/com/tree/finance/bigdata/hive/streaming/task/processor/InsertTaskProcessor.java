@@ -136,7 +136,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
     protected void handleMoreTask(TaskInfo task) {
         List<TaskInfo> moreTasks;
         int greedyCount = config.getGreedyProcessBatchLimit();
-        TaskInfo errorTask = null;
+        TaskInfo processing = null;
         while (!(moreTasks = getSameTask(task)).isEmpty()) {
             InsertMutation mutationUtils = new InsertMutation(task.getDb(),
                     task.getTbl(), task.getPartitionName(),
@@ -144,7 +144,9 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             try {
                 LOG.info("going to process {} more tasks", moreTasks.size());
                 List<TaskInfo> processed = new ArrayList<>();
+
                 for (TaskInfo sameTask : moreTasks) {
+                    processing = sameTask;
                     if (processed.size() >= greedyCount) {
                         mutationUtils.commitTransaction();
                         LOG.info("processed {} additional tasks, committed as a batch", processed.size());
@@ -154,14 +156,8 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                                 task.getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
                         processed.clear();
                     }
-                    try {
-                        handleTask(mutationUtils, sameTask);
-                        LOG.info("additional task success in batch: {}", sameTask.getFilePath());
-                    } catch (Exception e) {
-                        errorTask = sameTask;
-                        LOG.error("additional task failed: {}", errorTask, e);
-                        throw new RuntimeException("task failed in batch");
-                    }
+                    handleTask(mutationUtils, sameTask);
+                    LOG.info("additional task success in batch: {}", sameTask.getFilePath());
                     processed.add(sameTask);
                 }
                 if (!processed.isEmpty()) {
@@ -175,9 +171,9 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 // if get transaction exception ignore it, let others process this task
                 LOG.warn("ignore this transaction exception， let others process this task", e);
             } catch (Throwable t) { //if other error try batch by single
-                LOG.error("file task failed, {}", task);
+                LOG.error("file task failed, {}", processing);
                 mutationUtils.abortTxn();
-                dbTaskStatusListener.onTaskError(errorTask);
+                dbTaskStatusListener.onTaskError(processing);
             }
         }
     }

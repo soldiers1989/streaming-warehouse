@@ -7,6 +7,7 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,22 +32,11 @@ public class HbaseUtils {
     private List<Put> buffer;
     private Table htable;
 
-    private HbaseUtils(String tableName, Configuration config, boolean create) throws IOException {
+    private static final ConcurrentHashSet<String> CHECKED_EXIST_TABLE = new ConcurrentHashSet<>();
+
+    private HbaseUtils(String tableName, Configuration config) throws IOException {
         this.buffer = new ArrayList<>();
         this.batchSize = config.getInt(KEY_HBASE_INSERT_BATCH_SIZE, 500);
-        if (connection == null) {
-            synchronized (HbaseUtils.class) {
-                if (connection == null) {
-                    config.setInt("zookeeper.session.timeout", 3600000);
-                    connection = ConnectionFactory.createConnection(config);
-                }
-            }
-        }
-        if (create) {
-            synchronized (HbaseUtils.class) {
-                createTale(tableName, "f");
-            }
-        }
         this.htable = connection.getTable(TableName.valueOf(tableName));
     }
 
@@ -54,14 +44,26 @@ public class HbaseUtils {
         if (StringUtils.isEmpty(tableName)) {
             throw new RuntimeException(KEY_HBASE_TABLE_NAME + " is not set");
         }
-        return new HbaseUtils(tableName, conf, false);
-    }
 
-    public static HbaseUtils getTableInstance(String tableName, Configuration conf, boolean create) throws Exception {
-        if (StringUtils.isEmpty(tableName)) {
-            throw new RuntimeException(KEY_HBASE_TABLE_NAME + " is not set");
+        if (connection == null) {
+            synchronized (HbaseUtils.class) {
+                if (connection == null) {
+                    conf.setInt("zookeeper.session.timeout", 3600000);
+                    connection = ConnectionFactory.createConnection(conf);
+                }
+            }
         }
-        return new HbaseUtils(tableName, conf, create);
+
+        if (!CHECKED_EXIST_TABLE.contains(tableName)) {
+            synchronized (HbaseUtils.class) {
+                if (!CHECKED_EXIST_TABLE.contains(tableName)) {
+                    createTale(tableName, "f");
+                    CHECKED_EXIST_TABLE.add(tableName);
+                }
+
+            }
+        }
+        return new HbaseUtils(tableName, conf);
     }
 
     public String getString(String rowKey, byte[] family, byte[] col) {

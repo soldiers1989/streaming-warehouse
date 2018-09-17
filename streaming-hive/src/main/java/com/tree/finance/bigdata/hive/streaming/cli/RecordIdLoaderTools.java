@@ -187,7 +187,7 @@ public class RecordIdLoaderTools {
                 AcidInputFormat.Options options = new AcidInputFormat.Options(conf);
 
                 HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX,
-                        ConfigFactory.getHbaseConf(), true);
+                        ConfigFactory.getHbaseConf());
 
                 for (InputSplit inputSplit : inputSplits) {
                     AcidInputFormat.RowReader<OrcStruct> inner = inputFormat.getReader(inputSplit, options);
