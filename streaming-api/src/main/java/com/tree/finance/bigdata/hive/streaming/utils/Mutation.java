@@ -48,11 +48,11 @@ public abstract class Mutation {
 
     protected long rowId = 0;
 
-    protected boolean initialized = false;
+    protected boolean txnOpen = false;
 
     protected String metastoreUris;
 
-    protected Long transactionId;
+    protected long transactionId;
 
     protected String db;
     protected String table;
@@ -205,7 +205,6 @@ public abstract class Mutation {
                 .table(destinations.get(0))
                 .mutatorFactory(this.factory)
                 .build();
-        this.transactionId = mutateTransaction.getTransactionId();
         if (null == this.hbaseUtils) {
             this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
         }
@@ -249,4 +248,7 @@ public abstract class Mutation {
         this.checkExist = true;
     }
 
+    public long getTransactionId() {
+        return transactionId;
+    }
 }

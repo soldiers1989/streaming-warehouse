@@ -16,6 +16,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hive.hcatalog.streaming.mutate.client.TransactionException;
+import org.apache.hive.hcatalog.streaming.mutate.client.lock.LockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,15 +87,24 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             }
             handleMoreTask(task.getTaskInfo());
         } catch (TransactionException e) {
-            LOG.warn("txn exception", e);
-            mutationUtils.abortTxn();
-            // not update info in database, but ack mq message
-            mqTaskStatusListener.onTaskSuccess((RabbitMqTask) task);
+            try {
+                if (e.getCause() instanceof LockException) {
+                    LOG.warn("failed to lock for mq task, txnId: {}, file: {}", mutationUtils.getTransactionId(),
+                            task.getTaskInfo().getFilePath());
+                } else {
+                    LOG.error("txn exception", e);
+                }
+                mutationUtils.abortTxn();
+            } catch (Exception ex) {
+                LOG.error("error handle transaction exception", ex);
+            } finally {
+                mqTaskStatusListener.onTaskError(task);
+            }
         } catch (Throwable t) {
             LOG.error("file task failed: {}", task.getTaskInfo(), t);
             try {
                 mutationUtils.abortTxn();
-                mqTaskStatusListener.onTaskError((RabbitMqTask) task);
+                mqTaskStatusListener.onTaskError(task);
                 dbTaskStatusListener.onTaskError(task.getTaskInfo());
             } catch (Throwable e) {
                 LOG.error("error abort txn", e);
@@ -120,7 +130,12 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             }
             handleMoreTask(task.getTaskInfo());
         } catch (TransactionException e) {
-            LOG.warn("txn exception", e);
+            if (e.getCause() instanceof LockException) {
+                LOG.warn("failed to lock for mysql task, txnId: {}, file {}",
+                        mutationUtils.getTransactionId(), task.getTaskInfo().getFilePath());
+            } else {
+                LOG.error("caught txn exception", e);
+            }
             mutationUtils.abortTxn();
         } catch (Throwable t) {
             LOG.error("file task failed: {}", task.getTaskInfo(), t);
@@ -167,9 +182,14 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 }
                 LOG.info("finished processing {} more tasks", moreTasks.size());
             } catch (TransactionException e) {
+                if (e.getCause() instanceof LockException) {
+                    LOG.warn("failed to lock for more task, txnId: {}, file: {}", mutationUtils.getTransactionId(), task.getFilePath());
+                    // not update info in database
+                } else {
+                    LOG.error("caught txn exception", e);
+                    // not update info in database
+                }
                 mutationUtils.abortTxn();
-                // if get transaction exception ignore it, let others process this task
-                LOG.warn("ignore this transaction exception， let others process this task", e);
             } catch (Throwable t) { //if other error try batch by single
                 LOG.error("file task failed, {}", processing);
                 mutationUtils.abortTxn();
@@ -191,7 +211,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
 
         try (AvroFileReader reader = new AvroFileReader(new Path(task.getFilePath()))) {
             Schema recordSchema = reader.getSchema();
-            if (!mutationUtils.txnStarted()) {
+            if (!mutationUtils.txnOpen()) {
                 mutationUtils.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
             }
             Long bytes = fileSystem.getFileStatus(path).getLen();
