@@ -20,6 +20,7 @@ import org.apache.hive.hcatalog.streaming.mutate.worker.MutatorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.List;
 
 import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_RECORDID_TBL_SUFFIX;
@@ -90,10 +91,11 @@ public abstract class Mutation {
         if (!txnStarted()) {
             return;
         }
-        //should not ignore HBase client closing error, to prevent from rowKey not write properly
-        hbaseUtils.close();
-        mutateCoordinator.close();
-        mutateTransaction.commit();
+        closeHbaseUtil();
+        closeMutator();
+        if (null != mutateTransaction) {
+            mutateTransaction.commit();
+        }
         closeClientQueitely();
 
         if (null != latestUpdateTime) {
@@ -106,6 +108,18 @@ public abstract class Mutation {
         }
         closeDynamicConfigQuietely();
 
+    }
+
+    protected void closeMutator() throws IOException{
+        if (null != mutateCoordinator) {
+            mutateCoordinator.close();
+        }
+    }
+
+    private void closeHbaseUtil() throws IOException {
+        if (null != hbaseUtils) {
+            hbaseUtils.close();
+        }
     }
 
     private void closeMutatorQuietly() {
@@ -182,6 +196,8 @@ public abstract class Mutation {
                 .build();
         this.mutatorClient.connect();
         this.mutateTransaction = mutatorClient.newTransaction();
+        //once we got new transaction, set initialized even when this transaction have not begun
+        this.initialized = true;
         this.mutateTransaction.begin();
         List<AcidTable> destinations = mutatorClient.getTables();
         this.mutateCoordinator = new MutatorCoordinatorBuilder()
@@ -193,7 +209,6 @@ public abstract class Mutation {
         if (null == this.hbaseUtils) {
             this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
         }
-        this.initialized = true;
     }
 
     public void beginStreamTransaction(Schema schema, HiveConf conf) throws Exception {
