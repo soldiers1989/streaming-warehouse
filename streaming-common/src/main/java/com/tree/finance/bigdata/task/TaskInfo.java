@@ -21,6 +21,8 @@ public class TaskInfo {
     //任务更新时间：创建时间、重试时间
     private Long lastUpdateTime;
 
+    private Integer attempt;
+
     public TaskInfo(String id, String db, String tbl, List<String> partitions, String partitionName, String filePath, Operation op) {
         this.id = id;
         this.db = db;
@@ -31,6 +33,23 @@ public class TaskInfo {
         this.op = op;
         this.retryCount = 0;
         this.lastUpdateTime = System.currentTimeMillis();
+    }
+
+    public TaskInfo(String id, String db, String tbl, List<String> partitions, String partitionName, String filePath, Operation op, Integer attempt) {
+        this.id = id;
+        this.db = db;
+        this.tbl = tbl;
+        this.partitions = partitions;
+        this.partitionName = partitionName;
+        this.filePath = filePath;
+        this.op = op;
+        this.retryCount = 0;
+        this.lastUpdateTime = System.currentTimeMillis();
+        this.attempt = attempt;
+    }
+
+    public Integer getAttempt() {
+        return attempt;
     }
 
     public String getId() {

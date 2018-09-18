@@ -185,6 +185,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
         } catch (DataDelayedException e) {
             //no need to update task status to delay again
             LOG.info("task delay again: {}", task.getTaskInfo());
+            dbTaskStatusListener.onTaskDelay(task.getTaskInfo());
         } catch (TransactionException e) {
             if (e.getCause() instanceof LockException) {
                 try {

@@ -46,21 +46,21 @@ public abstract class TaskProcessor {
 
     protected List<TaskInfo> getSameTask(TaskInfo taskInfo) {
         List<TaskInfo> list = new ArrayList<>();
-        StringBuilder sb = new StringBuilder("select id, file_path from ")
+        StringBuilder sb = new StringBuilder("select id, file_path, attempt from ")
                 .append(config.getTaskTleName()).append(SPACE)
                 .append("where db=").append(SQL_VALUE_QUOTE).append(taskInfo.getDb()).append(SQL_VALUE_QUOTE).append("and ")
                 .append("table_name =").append(SQL_VALUE_QUOTE).append(taskInfo.getTbl()).append(SQL_VALUE_QUOTE).append("and ")
                 .append("partition_name =").append(SQL_VALUE_QUOTE).append(taskInfo.getPartitionName()).append(SQL_VALUE_QUOTE).append("and ")
                 .append("op =").append(SQL_VALUE_QUOTE).append(taskInfo.getOp().code()).append(SQL_VALUE_QUOTE).append("and ")
-                .append("( status=").append(SQL_VALUE_QUOTE).append(TaskStatus.NEW).append(SQL_VALUE_QUOTE)
-                .append(" or status=").append(SQL_VALUE_QUOTE).append(TaskStatus.DELAY).append(SQL_VALUE_QUOTE).append(")")
+                .append(" status=").append(SQL_VALUE_QUOTE).append(TaskStatus.NEW).append(SQL_VALUE_QUOTE)
                 .append(" order by id asc");
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sb.toString())) {
             while (rs.next()) {
                 list.add(new TaskInfo(rs.getString(1), taskInfo.getDb(), taskInfo.getTbl()
-                        , taskInfo.getPartitions(), taskInfo.getPartitionName(), rs.getString(2), taskInfo.getOp()));
+                        , taskInfo.getPartitions(), taskInfo.getPartitionName(), rs.getString(2), taskInfo.getOp(),
+                        rs.getInt(3)));
             }
             return list;
         } catch (Exception e) {

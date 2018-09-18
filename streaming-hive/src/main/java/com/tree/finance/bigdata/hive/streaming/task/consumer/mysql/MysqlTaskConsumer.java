@@ -24,12 +24,18 @@ public class MysqlTaskConsumer implements TaskConsumer<MysqlTask> {
 
     private static Logger LOG = LoggerFactory.getLogger(MysqlTaskConsumer.class);
     private static final String SEP = "'";
+    private Integer maxRetries;
+
+    public MysqlTaskConsumer() {
+        this.maxRetries = ConfigHolder.getConfig().getDelayTaskMaxRetries();
+    }
 
     public List<MysqlTask> consumeBatch() {
         List<MysqlTask> result = new ArrayList<>();
-        StringBuilder sb = new StringBuilder("select ID, DB, TABLE_NAME, PARTITION_NAME, FILE_PATH, OP from ")
+        StringBuilder sb = new StringBuilder("select ID, DB, TABLE_NAME, PARTITION_NAME, FILE_PATH, OP, ATTEMPT from ")
                 .append(ConfigHolder.getConfig().getTaskTleName())
                 .append(" where STATUS = ").append(SEP).append(TaskStatus.DELAY).append(SEP)
+                .append(" and attempt <= ").append(maxRetries)
                 .append(" order by ID asc");
         try (Connection conn = ConfigHolder.getDbFactory().getConnection();
              Statement stmt = conn.createStatement();
@@ -42,7 +48,8 @@ public class MysqlTaskConsumer implements TaskConsumer<MysqlTask> {
                 List<String> partitions = getPartition(parName);
                 String filePath = rs.getString(5);
                 Operation op = Operation.forCode(rs.getString(6));
-                result.add(new MysqlTask(new TaskInfo(id, db, table, partitions, parName, filePath, op)));
+                Integer attempt =  rs.getInt(7);
+                result.add(new MysqlTask(new TaskInfo(id, db, table, partitions, parName, filePath, op, attempt)));
             }
         } catch (Exception e) {
             LOG.error("failed to execute: {}", sb.toString(), e);

@@ -43,9 +43,11 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
                         .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
                 stmt.execute(sb.toString());
             } else if (SuccessStrategy.update.equals(successStrategy)) {
+                int attempt = taskInfo.getAttempt() + 1;
                 StringBuilder sb = new StringBuilder("update ")
                         .append(ConfigHolder.getConfig().getTaskTleName())
                         .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.SUCCESS).append(SQL_VALUE_QUOTE)
+                        .append(" , attempt = ").append(attempt)
                         .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
                 stmt.executeUpdate(sb.toString());
             }
@@ -63,9 +65,11 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
         TaskStatusListener.taskFileOnError(taskInfo.getFilePath());
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {
+            int attempt = taskInfo.getAttempt() + 1;
             StringBuilder sb = new StringBuilder("update ")
                     .append(ConfigHolder.getConfig().getTaskTleName())
                     .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.FAIL).append(SQL_VALUE_QUOTE)
+                    .append(" , attempt = ").append(attempt)
                     .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
             stmt.executeUpdate(sb.toString());
         } catch (Exception e) {
@@ -78,9 +82,11 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
         if (null == taskInfo) {
             return;
         }
+        int attempt = taskInfo.getAttempt() == null ? 1 : taskInfo.getAttempt() + 1;
         StringBuilder sb = new StringBuilder("update ")
                 .append(ConfigHolder.getConfig().getTaskTleName())
                 .append(" set status = ").append(SQL_VALUE_QUOTE).append(TaskStatus.DELAY).append(SQL_VALUE_QUOTE)
+                .append(" , attempt = ").append(attempt)
                 .append(" where id= ").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE);
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {

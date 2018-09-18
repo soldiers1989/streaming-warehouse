@@ -70,6 +70,9 @@ public abstract class AppConfig {
     @Config("task.delay.schedule.check.interval.min")
     @Default("5")
     public abstract int getDelayScheduleMin();
+    @Config("task.delay.max.retries")
+    @Default("3")
+    public abstract int getDelayTaskMaxRetries();
 
     //task database config
     @Config("task.db.url")
