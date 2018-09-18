@@ -106,7 +106,12 @@ public class UpdateMutation extends Mutation {
             return;
         }
 
-        // update should always check exist
+        //transaction opened but failed to lock and begin
+        if (initialized && ! txnBegin) {
+            this.mutateTransaction.commit();
+            return;
+        }
+
         super.beginTransaction(recordSchema, this.conf);
         for (Map.Entry<RecordIdentifier, GenericData.Record> entry : recordIdsortedRecord.entrySet()) {
             GenericData.Record record = entry.getValue();

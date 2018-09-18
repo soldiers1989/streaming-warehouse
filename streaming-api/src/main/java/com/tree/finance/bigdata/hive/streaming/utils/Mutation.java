@@ -50,6 +50,8 @@ public abstract class Mutation {
 
     protected boolean initialized = false;
 
+    protected boolean txnBegin = false;
+
     protected String metastoreUris;
 
     protected long transactionId;
@@ -200,6 +202,7 @@ public abstract class Mutation {
         //once we got new transaction, set initialized even when this transaction have not begun
         this.initialized = true;
         this.mutateTransaction.begin();
+        this.txnBegin = true;
         List<AcidTable> destinations = mutatorClient.getTables();
         this.mutateCoordinator = new MutatorCoordinatorBuilder()
                 .metaStoreUri(metastoreUris)
