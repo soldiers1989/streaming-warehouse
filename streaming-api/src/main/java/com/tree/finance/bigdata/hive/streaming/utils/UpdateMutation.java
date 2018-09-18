@@ -5,7 +5,6 @@ import com.tree.finance.bigdata.hive.streaming.constants.DynamicConfig;
 import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
 import com.tree.finance.bigdata.task.Operation;
-import com.tree.finance.bigdata.utils.common.CollectionUtils;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;

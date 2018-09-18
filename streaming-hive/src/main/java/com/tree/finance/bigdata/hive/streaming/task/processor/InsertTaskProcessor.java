@@ -87,25 +87,19 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             }
             handleMoreTask(task.getTaskInfo());
         } catch (TransactionException e) {
-            if (e.getCause() instanceof LockException) {
-                try {
+            try {
+                if (e.getCause() instanceof LockException) {
                     LOG.warn("failed to lock for mq task, txnId: {}, file: {}", mutationUtils.getTransactionId(),
                             task.getTaskInfo().getFilePath());
-                    mutationUtils.commitTransaction();
-                    // not update info in database, but ack mq message
-                } catch (Exception ex) {
-                    mutationUtils.abortTxn();
-                    LOG.error("failed to process lock exception", ex);
-                }finally {
-                    mqTaskStatusListener.onTaskError(task);
+                } else {
+                    LOG.error("txn exception", e);
                 }
-            } else {
-                LOG.error("caught txn exception", e);
                 mutationUtils.abortTxn();
-                // not update info in database, but ack mq message
+            } catch (Exception ex) {
+                LOG.error("error handle transaction exception", ex);
+            } finally {
                 mqTaskStatusListener.onTaskError(task);
             }
-
         } catch (Throwable t) {
             LOG.error("file task failed: {}", task.getTaskInfo(), t);
             try {
@@ -137,20 +131,12 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             handleMoreTask(task.getTaskInfo());
         } catch (TransactionException e) {
             if (e.getCause() instanceof LockException) {
-                try {
-                    LOG.warn("failed to lock for mysql task, txnId: {}, file {}",
-                            mutationUtils.getTransactionId(), task.getTaskInfo().getFilePath());
-                    mutationUtils.commitTransaction();
-                    // not update info in database, but ack mq message
-                } catch (Exception ex) {
-                    mutationUtils.abortTxn();
-                    LOG.error("failed to process lock exception", ex);
-                }
+                LOG.warn("failed to lock for mysql task, txnId: {}, file {}",
+                        mutationUtils.getTransactionId(), task.getTaskInfo().getFilePath());
             } else {
                 LOG.error("caught txn exception", e);
-                mutationUtils.abortTxn();
-                // not update info in database, but ack mq message
             }
+            mutationUtils.abortTxn();
         } catch (Throwable t) {
             LOG.error("file task failed: {}", task.getTaskInfo(), t);
             try {
@@ -197,19 +183,13 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 LOG.info("finished processing {} more tasks", moreTasks.size());
             } catch (TransactionException e) {
                 if (e.getCause() instanceof LockException) {
-                    try {
-                        LOG.warn("failed to lock for more task, txnId: {}, file: {}", mutationUtils.getTransactionId(), task.getFilePath());
-                        mutationUtils.commitTransaction();
-                        // not update info in database, but ack mq message
-                    } catch (Exception ex) {
-                        mutationUtils.abortTxn();
-                        LOG.error("failed to process lock exception", ex);
-                    }
+                    LOG.warn("failed to lock for more task, txnId: {}, file: {}", mutationUtils.getTransactionId(), task.getFilePath());
+                    // not update info in database
                 } else {
                     LOG.error("caught txn exception", e);
-                    mutationUtils.abortTxn();
-                    // not update info in database, but ack mq message
+                    // not update info in database
                 }
+                mutationUtils.abortTxn();
             } catch (Throwable t) { //if other error try batch by single
                 LOG.error("file task failed, {}", processing);
                 mutationUtils.abortTxn();
@@ -231,7 +211,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
 
         try (AvroFileReader reader = new AvroFileReader(new Path(task.getFilePath()))) {
             Schema recordSchema = reader.getSchema();
-            if (!mutationUtils.txnStarted()) {
+            if (!mutationUtils.txnOpen()) {
                 mutationUtils.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
             }
             Long bytes = fileSystem.getFileStatus(path).getLen();

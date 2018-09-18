@@ -121,12 +121,11 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             if (e.getCause() instanceof LockException) {
                 try {
                     LOG.warn("failed to lock for mq task, txnId: {}, file: {}", updateMutation.getTransactionId(), task.getTaskInfo().getFilePath());
-                    updateMutation.commitTransaction();
                     // not update info in database, but ack mq message
                 } catch (Exception ex) {
-                    updateMutation.abortTxn();
                     LOG.error("failed to process lock exception", ex);
                 } finally {
+                    updateMutation.abortTxn();
                     mqTaskStatusListener.onTaskError((RabbitMqTask) task);
                 }
             } else {
@@ -190,17 +189,15 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             if (e.getCause() instanceof LockException) {
                 try {
                     LOG.warn("failed to lock for delay mysql task, txnId: {}, file: {}", updateMutation.getTransactionId(), task.getTaskInfo().getFilePath());
-                    updateMutation.commitTransaction();
-                    // not update info in database, but ack mq message
+                    // not update info in database
                 } catch (Exception ex) {
-                    updateMutation.abortTxn();
                     LOG.error("failed to process lock exception", ex);
                 }
             } else {
                 LOG.error("caught txn exception", e);
-                updateMutation.abortTxn();
-                // not update info in database, but ack mq message
+                // not update info in database
             }
+            updateMutation.abortTxn();
         } catch (Throwable t) {
             LOG.error("file task failed: " + task.getTaskInfo().getFilePath(), t);
             try {
@@ -274,17 +271,15 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 if (e.getCause() instanceof LockException) {
                     try {
                         LOG.warn("failed to lock for more task, txnId: {}, file: {}", updateMutation.getTransactionId(), task.getFilePath());
-                        updateMutation.commitTransaction();
                         // not update info in database, but ack mq message
                     } catch (Exception ex) {
-                        updateMutation.abortTxn();
                         LOG.error("failed to process lock exception", ex);
                     }
                 } else {
                     LOG.error("caught txn exception", e);
-                    updateMutation.abortTxn();
                     // not update info in database, but ack mq message
                 }
+                updateMutation.abortTxn();
             } catch (DataDelayedException e) {
                 LOG.info("additional task delayed: {}", task);
                 dbTaskStatusListener.onTaskDelay(task);
