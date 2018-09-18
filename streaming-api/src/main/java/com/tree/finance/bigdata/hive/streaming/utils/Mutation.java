@@ -83,12 +83,12 @@ public abstract class Mutation {
         this.hbaseConf = hbaseConf;
     }
 
-    public boolean txnStarted() {
-        return initialized;
+    public boolean txnOpen() {
+        return txnOpen;
     }
 
     public void commitTransaction() throws Exception {
-        if (!txnStarted()) {
+        if (!txnOpen()) {
             return;
         }
         closeHbaseUtil();
@@ -133,7 +133,7 @@ public abstract class Mutation {
     }
 
     public void abortTxn() {
-        if (!txnStarted()) {
+        if (!txnOpen()) {
             return;
         }
         closeMutatorQuietly();
@@ -196,8 +196,9 @@ public abstract class Mutation {
                 .build();
         this.mutatorClient.connect();
         this.mutateTransaction = mutatorClient.newTransaction();
+        this.transactionId = mutateTransaction.getTransactionId();
         //once we got new transaction, set initialized even when this transaction have not begun
-        this.initialized = true;
+        this.txnOpen = true;
         this.mutateTransaction.begin();
         List<AcidTable> destinations = mutatorClient.getTables();
         this.mutateCoordinator = new MutatorCoordinatorBuilder()
