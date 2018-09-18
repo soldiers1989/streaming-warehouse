@@ -52,7 +52,7 @@ public abstract class Mutation {
 
     protected String metastoreUris;
 
-    protected Long transactionId;
+    protected long transactionId;
 
     protected String db;
     protected String table;
@@ -196,6 +196,7 @@ public abstract class Mutation {
                 .build();
         this.mutatorClient.connect();
         this.mutateTransaction = mutatorClient.newTransaction();
+        this.transactionId = mutateTransaction.getTransactionId();
         //once we got new transaction, set initialized even when this transaction have not begun
         this.initialized = true;
         this.mutateTransaction.begin();
@@ -205,7 +206,6 @@ public abstract class Mutation {
                 .table(destinations.get(0))
                 .mutatorFactory(this.factory)
                 .build();
-        this.transactionId = mutateTransaction.getTransactionId();
         if (null == this.hbaseUtils) {
             this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
         }
@@ -249,4 +249,7 @@ public abstract class Mutation {
         this.checkExist = true;
     }
 
+    public Long getTransactionId() {
+        return transactionId;
+    }
 }

@@ -19,6 +19,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hive.hcatalog.streaming.mutate.client.TransactionException;
+import org.apache.hive.hcatalog.streaming.mutate.client.lock.LockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,9 +118,23 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             mqTaskStatusListener.onTaskDelay((RabbitMqTask) task);
             dbTaskStatusListener.onTaskDelay(task.getTaskInfo());
         } catch (TransactionException e) {
-            updateMutation.abortTxn();
-            // if get transaction exception ignore it, let others process this task
-            LOG.warn("ignore this transaction exception， let others process this task", e);
+            if (e.getCause() instanceof LockException) {
+                try {
+                    LOG.warn("failed to lock for mq task, txnId: {}, file: {}", updateMutation.getTransactionId(), task.getTaskInfo().getFilePath());
+                    updateMutation.commitTransaction();
+                    // not update info in database, but ack mq message
+                } catch (Exception ex) {
+                    updateMutation.abortTxn();
+                    LOG.error("failed to process lock exception", ex);
+                } finally {
+                    mqTaskStatusListener.onTaskError((RabbitMqTask) task);
+                }
+            } else {
+                LOG.warn("caught txn exception, let others process this task", e);
+                updateMutation.abortTxn();
+                mqTaskStatusListener.onTaskError((RabbitMqTask) task);
+                // not update info in database, but ack mq message
+            }
         } catch (Throwable t) {
             LOG.error("file task failed: " + task.getTaskInfo().getFilePath(), t);
             try {
@@ -172,9 +187,20 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             //no need to update task status to delay again
             LOG.info("task delay again: {}", task.getTaskInfo());
         } catch (TransactionException e) {
-            updateMutation.abortTxn();
-            // if get transaction exception ignore it, let others process this task
-            LOG.warn("ignore this transaction exception， let others process this task", e);
+            if (e.getCause() instanceof LockException) {
+                try {
+                    LOG.warn("failed to lock for delay mysql task, txnId: {}, file: {}", updateMutation.getTransactionId(), task.getTaskInfo().getFilePath());
+                    updateMutation.commitTransaction();
+                    // not update info in database, but ack mq message
+                } catch (Exception ex) {
+                    updateMutation.abortTxn();
+                    LOG.error("failed to process lock exception", ex);
+                }
+            } else {
+                LOG.error("caught txn exception", e);
+                updateMutation.abortTxn();
+                // not update info in database, but ack mq message
+            }
         } catch (Throwable t) {
             LOG.error("file task failed: " + task.getTaskInfo().getFilePath(), t);
             try {
@@ -212,12 +238,13 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
     @Override
     protected void handleMoreTask(TaskInfo previousTask) {
         List<TaskInfo> moreTasks = getSameTask(previousTask);
+        UpdateMutation updateMutation = null;
         LOG.info("going to handle {} more tasks", moreTasks.size());
         for (TaskInfo task : moreTasks) {
             Summary.Timer timer = MetricReporter.startUpdate();
             long startTime = System.currentTimeMillis();
             LOG.info("additional file task start: {}", task.getFilePath());
-            UpdateMutation updateMutation = new UpdateMutation(task.getDb(), task.getTbl(),
+            updateMutation = new UpdateMutation(task.getDb(), task.getTbl(),
                     task.getPartitionName(), task.getPartitions(),
                     config.getMetastoreUris(), ConfigFactory.getHbaseConf());
             try {
@@ -244,9 +271,20 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 LOG.info("additional file task success: {} cost: {}ms", task.getFilePath(), endTime - startTime);
 
             } catch (TransactionException e) {
-                updateMutation.abortTxn();
-                // if get transaction exception ignore it, let others process this task
-                LOG.warn("ignore this transaction exception， let others process this task", e);
+                if (e.getCause() instanceof LockException) {
+                    try {
+                        LOG.warn("failed to lock for more task, txnId: {}, file: {}", updateMutation.getTransactionId(), task.getFilePath());
+                        updateMutation.commitTransaction();
+                        // not update info in database, but ack mq message
+                    } catch (Exception ex) {
+                        updateMutation.abortTxn();
+                        LOG.error("failed to process lock exception", ex);
+                    }
+                } else {
+                    LOG.error("caught txn exception", e);
+                    updateMutation.abortTxn();
+                    // not update info in database, but ack mq message
+                }
             } catch (DataDelayedException e) {
                 LOG.info("additional task delayed: {}", task);
                 dbTaskStatusListener.onTaskDelay(task);
