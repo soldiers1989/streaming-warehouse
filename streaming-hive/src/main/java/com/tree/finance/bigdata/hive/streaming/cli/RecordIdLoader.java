@@ -41,6 +41,7 @@ public class RecordIdLoader {
                     new RecordIdLoaderTools(parser.getDb(), table, parser.getCores()).load();
                 } catch (Exception e) {
                     System.out.println("ERROR: failed to load table: " + table);
+                    e.printStackTrace();
                 }
             }
             iMetaStoreClient.close();

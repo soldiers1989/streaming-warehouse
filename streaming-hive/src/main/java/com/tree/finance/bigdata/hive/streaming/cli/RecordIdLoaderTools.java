@@ -162,6 +162,9 @@ public class RecordIdLoaderTools {
                 }
             }
         }
+        if (keyIndexes.isEmpty()) {
+            throw new RuntimeException("not primary key found");
+        }
         return keyIndexes;
     }
 
@@ -216,7 +219,7 @@ public class RecordIdLoaderTools {
                     }
                 }
                 hbaseUtils.close();
-                System.out.println(String.format("%s finished %.2f", table, (finishedTasks.incrementAndGet()* 1.0) / totalPartitions));
+                LOG.info(String.format("%s finished %.2f", table, (finishedTasks.incrementAndGet()* 1.0) / totalPartitions));
             } catch (Exception e) {
                 LOG.error("failed to load: {}", path, e);
                 System.out.println("ERROR: failed to load: " + path);
