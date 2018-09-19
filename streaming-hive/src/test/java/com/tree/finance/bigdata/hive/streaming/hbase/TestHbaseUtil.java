@@ -37,7 +37,7 @@ public class TestHbaseUtil {
 
     @Test
     public void testCreateTable() throws Exception {
-        HbaseUtils.createTale(tableName, "f");
+        HbaseUtils.createTale(tableName, "f", 0);
     }
 
     @Test

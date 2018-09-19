@@ -88,17 +88,24 @@ public class RecordIdLoaderTools {
         prepare(iMetaStoreClient);
         PartitionSpecProxy proxy = iMetaStoreClient.listPartitionSpecs(db, table, Integer.MAX_VALUE);
         Iterator<Partition> iterator = proxy.getPartitionIterator();
+
         FileSystem fs = FileSystem.get(new Configuration());
+        Path tablePath = new Path(iMetaStoreClient.getTable(db, table).getSd().getLocation());
+        //单位：B
+        long spaceBytes = fs.getContentSummary(tablePath).getSpaceConsumed();
+        long spaceMB = spaceBytes / 3 / 1024 / 1024;
+        System.out.println(table + "storage size: " + spaceMB + "mb");
+
         while (iterator.hasNext()) {
             String path = iterator.next().getSd().getLocation();
             if (!fs.exists(new Path(path))) {
                 continue;
             }
             totalPartitions++;
-            executor.submit(new LoadTask(path));
+            executor.submit(new LoadTask(path, spaceMB));
         }
+        System.out.println("table: " + table + ", total partitions: " + totalPartitions);
         iMetaStoreClient.close();
-        System.out.println("table: " + table +", total partitions: " + totalPartitions);
         executor.shutdown();
         while (!executor.isTerminated()) {
             LOG.info("wait tasks to be finished ...");
@@ -170,9 +177,11 @@ public class RecordIdLoaderTools {
 
     private class LoadTask implements Runnable {
         private String path;
+        private long mb;
 
-        public LoadTask(String path) {
+        public LoadTask(String path, long mb) {
             this.path = path;
+            this.mb = mb;
         }
 
         @Override
@@ -189,8 +198,17 @@ public class RecordIdLoaderTools {
                 InputSplit[] inputSplits = inputFormat.getSplits(jobConf, 1);
                 AcidInputFormat.Options options = new AcidInputFormat.Options(conf);
 
+                Configuration hbaseConf = ConfigFactory.getHbaseConf();
+                if (mb > 100 && mb < 500) {
+                    hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 3);
+                } else if (mb > 500 && mb < 1000) {
+                    hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 5);
+                } else if (mb > 1000) {
+                    hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 7);
+                }
+
                 HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX,
-                        ConfigFactory.getHbaseConf());
+                        hbaseConf);
 
                 for (InputSplit inputSplit : inputSplits) {
                     AcidInputFormat.RowReader<OrcStruct> inner = inputFormat.getReader(inputSplit, options);
@@ -209,7 +227,7 @@ public class RecordIdLoaderTools {
                         for (Integer keyIndex : primaryKeyIndex) {
                             busiIdSb.append(value.getFieldValue(keyIndex)).append(CONJECT);
                         }
-                        String rowKey =GenericRowIdUtils.addIdWithHash(busiIdSb.deleteCharAt(busiIdSb.length() - 1).toString());
+                        String rowKey = GenericRowIdUtils.addIdWithHash(busiIdSb.deleteCharAt(busiIdSb.length() - 1).toString());
 
                         Long updateTime = RecordUtils.getFieldAsTimeMillis(value.getFieldValue(updateTimeIndex));
                         Put put = new Put(Bytes.toBytes(rowKey));
@@ -219,7 +237,7 @@ public class RecordIdLoaderTools {
                     }
                 }
                 hbaseUtils.close();
-                LOG.info(String.format("%s finished %.2f", table, (finishedTasks.incrementAndGet()* 1.0) / totalPartitions));
+                LOG.info(String.format("%s finished %.2f", table, (finishedTasks.incrementAndGet() * 1.0) / totalPartitions));
             } catch (Exception e) {
                 LOG.error("failed to load: {}", path, e);
                 System.out.println("ERROR: failed to load: " + path);

@@ -32,6 +32,8 @@ public class HbaseUtils {
     private List<Put> buffer;
     private Table htable;
 
+    public static String PRE_SPLIT_REGIONS = "table.pre.split.regions";
+
     private static final ConcurrentHashSet<String> CHECKED_EXIST_TABLE = new ConcurrentHashSet<>();
 
     private HbaseUtils(String tableName, Configuration config) throws IOException {
@@ -57,7 +59,8 @@ public class HbaseUtils {
         if (!CHECKED_EXIST_TABLE.contains(tableName)) {
             synchronized (HbaseUtils.class) {
                 if (!CHECKED_EXIST_TABLE.contains(tableName)) {
-                    createTale(tableName, "f");
+                    int splitRegions = conf.getInt(PRE_SPLIT_REGIONS, 0);
+                    createTale(tableName, "f", splitRegions);
                     CHECKED_EXIST_TABLE.add(tableName);
                 }
 
@@ -135,7 +138,7 @@ public class HbaseUtils {
         }
     }
 
-    public static void createTale(String tableName, String familyStr) throws IOException {
+    public static void createTale(String tableName, String familyStr, int regions) throws IOException {
         HTableDescriptor table = new HTableDescriptor(TableName.valueOf(tableName));
         table.setCompactionEnabled(true);
         HColumnDescriptor family = new HColumnDescriptor(Bytes.toBytes(familyStr));
@@ -143,7 +146,14 @@ public class HbaseUtils {
         Admin admin = connection.getAdmin();
         if (!admin.tableExists(TableName.valueOf(tableName))) {
             LOG.info("created not exist table: {}", tableName);
-            admin.createTable(table);
+            if (regions == 0) {
+                admin.createTable(table);
+            } else {
+                byte[][] splitKeys = new byte[2][];
+                splitKeys[0] = Bytes.toBytes("-9");
+                splitKeys[1] = Bytes.toBytes("9");
+                admin.createTable(table, splitKeys[0], splitKeys[1], regions);
+            }
         } else {
             LOG.info("table exist {}", tableName);
         }
