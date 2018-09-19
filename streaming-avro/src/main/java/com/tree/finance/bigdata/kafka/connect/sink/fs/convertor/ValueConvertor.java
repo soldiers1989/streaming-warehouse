@@ -72,7 +72,7 @@ public class ValueConvertor {
                         //change to cst timezone
                         calendar.add(Calendar.HOUR, -8);
                         long unixMillis = calendar.getTimeInMillis();
-                        builder.set(field.name().toLowerCase(), (int) (unixMillis / 86400000L));
+                        builder.set(field.name().toLowerCase(), (unixMillis / 86400000));
                         continue;
                     }
                 }
