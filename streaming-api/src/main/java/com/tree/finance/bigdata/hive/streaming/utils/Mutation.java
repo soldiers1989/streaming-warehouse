@@ -98,7 +98,7 @@ public abstract class Mutation {
         }
         closeClientQueitely();
 
-        if (null != latestUpdateTime) {
+        if (null != latestUpdateTime && dynamicConfig != null) {
             try {
                 dynamicConfig.setStreamPartitionUpdateTime(db, table, partition, Long.toString(latestUpdateTime));
                 dynamicConfig.setStreamTableUpdateTime(db, table, Long.toString(latestUpdateTime));

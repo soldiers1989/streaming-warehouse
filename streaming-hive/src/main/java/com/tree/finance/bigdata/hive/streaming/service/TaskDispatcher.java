@@ -4,6 +4,7 @@ import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
+import com.tree.finance.bigdata.hive.streaming.task.processor.DelayTaskProcessor;
 import com.tree.finance.bigdata.hive.streaming.task.processor.InsertTaskProcessor;
 import com.tree.finance.bigdata.hive.streaming.task.processor.UpdateTaskProcessor;
 import com.tree.finance.bigdata.task.Operation;
@@ -26,6 +27,8 @@ public class TaskDispatcher implements Service {
 
     private UpdateTaskProcessor[] updateExecutor;
 
+    private DelayTaskProcessor[] delayExecutor;
+
     private AppConfig config;
 
     private ConnectionFactory factory;
@@ -47,6 +50,12 @@ public class TaskDispatcher implements Service {
         for (int i = 0; i < config.getUpdateProcessorCores(); i++) {
             updateExecutor[i] = new UpdateTaskProcessor(config, factory, i);
             updateExecutor[i].init();
+        }
+
+        this.delayExecutor = new DelayTaskProcessor[config.getDelayProcessorCores()];
+        for (int i = 0; i < config.getDelayProcessorCores(); i++) {
+            delayExecutor[i] = new DelayTaskProcessor(i);
+            delayExecutor[i].init();
         }
 
         LOG.info("started TaskProcessor ...");
@@ -73,15 +82,15 @@ public class TaskDispatcher implements Service {
         if (null == consumedTask) {
             return;
         }
+        int hash = Math.abs(Objects.hash(consumedTask.getTaskInfo().getDb(), consumedTask.getTaskInfo().getTbl(),
+                consumedTask.getTaskInfo().getPartitionName()));
         //handle by scheduler thread
-        if (Operation.CREATE.equals(consumedTask.getTaskInfo().getOp())) {
-            insertExecutor[0].handleMysqlTask(consumedTask);
-        } else if (Operation.UPDATE.equals(consumedTask.getTaskInfo().getOp()) || Operation.DELETE.equals(consumedTask.getTaskInfo().getOp())) {
-            updateExecutor[0].handleDelayTask(consumedTask);
-        } else {
-            LOG.error("unsupported task type: {}", consumedTask.getTaskInfo());
-            consumedTask.taskRejected();
+        try {
+            delayExecutor[hash % delayExecutor.length].process(consumedTask);
+        } catch (Exception e) {
+            LOG.error("", e);
         }
+
     }
 
     @Override
@@ -103,6 +112,15 @@ public class TaskDispatcher implements Service {
                 LOG.error("error stopping insert ");
             }
             LOG.info("stopped update TaskProcessor");
+        }
+
+        for (DelayTaskProcessor delayTaskProcessor : delayExecutor) {
+            try {
+                delayTaskProcessor.stop();
+            } catch (Exception e) {
+                LOG.error("error stopping insert ");
+            }
+            LOG.info("stopped delay TaskProcessor");
         }
 
         this.factory.close();

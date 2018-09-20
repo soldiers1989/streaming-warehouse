@@ -1,10 +1,10 @@
-create table if not exists ${table_name} ${tbl_columns}
+create table if not exists `${table_name}` ${tbl_columns}
 partitioned by(p_y int, p_m int, p_d int)
 clustered by (${cluster_columns}) into 1 buckets
 STORED AS ORC
 TBLPROPERTIES
 ( "transactional"="true",
-  "compactor.mapreduce.map.memory.mb"="1048",
+  "compactor.mapreduce.map.memory.mb"="2048",
   "compactorthreshold.hive.compactor.delta.num.threshold"="10",
   "compactorthreshold.hive.compactor.delta.pct.threshold"="0.5"
 )

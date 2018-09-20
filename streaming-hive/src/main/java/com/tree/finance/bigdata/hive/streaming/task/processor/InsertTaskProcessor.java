@@ -5,7 +5,6 @@ import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
-import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
 import com.tree.finance.bigdata.hive.streaming.utils.InsertMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
 import com.tree.finance.bigdata.task.TaskInfo;
@@ -112,42 +111,6 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
         }
     }
 
-    public void handleMysqlTask(MysqlTask task) {
-        InsertMutation mutationUtils = new InsertMutation(task.getTaskInfo().getDb(),
-                task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
-                task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
-        try {
-            long start = System.currentTimeMillis();
-            LOG.info("single task start: {}", task.getTaskInfo().getFilePath());
-            handleTask(mutationUtils, task.getTaskInfo());
-            LOG.info("single task success: {}, cost: {}ms", task.getTaskInfo().getFilePath(), System.currentTimeMillis() - start);
-            mutationUtils.commitTransaction();
-            try {
-                dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
-            } catch (Exception e) {
-                // ignore ack failure. Cause once success, source file is renamed, and will not be retried
-                LOG.warn("ack success failed, will not affect data accuracy", e);
-            }
-            handleMoreTask(task.getTaskInfo());
-        } catch (TransactionException e) {
-            if (e.getCause() instanceof LockException) {
-                LOG.warn("failed to lock for mysql task, txnId: {}, file {}",
-                        mutationUtils.getTransactionId(), task.getTaskInfo().getFilePath());
-            } else {
-                LOG.error("caught txn exception", e);
-            }
-            mutationUtils.abortTxn();
-        } catch (Throwable t) {
-            LOG.error("file task failed: {}", task.getTaskInfo(), t);
-            try {
-                mutationUtils.abortTxn();
-                dbTaskStatusListener.onTaskError(task.getTaskInfo());
-            } catch (Throwable e) {
-                LOG.error("error abort txn", e);
-            }
-        }
-    }
-
     protected void handleMoreTask(TaskInfo task) {
         List<TaskInfo> moreTasks;
         int greedyCount = config.getGreedyProcessBatchLimit();
@@ -200,15 +163,12 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
 
 
     private void handleTask(InsertMutation mutationUtils, TaskInfo task) throws Exception {
-
         FileSystem fileSystem = FileSystem.get(new Configuration());
         Path path = new Path(task.getFilePath());
-
         if (!fileSystem.exists(path)) {
             LOG.info("path not exist: {}", task.getFilePath());
             return;
         }
-
         try (AvroFileReader reader = new AvroFileReader(new Path(task.getFilePath()))) {
             Schema recordSchema = reader.getSchema();
             if (!mutationUtils.txnOpen()) {
@@ -221,7 +181,6 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             }
             MetricReporter.insertedBytes(bytes);
         }
-
     }
 
 
@@ -231,6 +190,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
 
     public void stop() {
         this.stop = true;
+        this.thread.interrupt();
         while (taskQueue.size() != 0) {
             try {
                 LOG.info("stopping Insert-Processor-{}, remaining {} tasks...", id, taskQueue.size());

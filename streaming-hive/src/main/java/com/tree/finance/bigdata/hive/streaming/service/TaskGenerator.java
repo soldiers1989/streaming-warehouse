@@ -10,6 +10,7 @@ import com.tree.finance.bigdata.utils.common.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
@@ -20,9 +21,7 @@ import java.util.concurrent.CountDownLatch;
  */
 public class TaskGenerator implements Service {
 
-    private Thread consumeThread;
-
-    private Thread delayScheduler;
+    private List<Thread> taskConsumeThreads = new ArrayList<>();
 
     private volatile boolean running = true;
 
@@ -33,14 +32,31 @@ public class TaskGenerator implements Service {
 
     private TaskDispatcher dispatcher;
 
-    private CountDownLatch countDownLatch = new CountDownLatch(2);
+    private CountDownLatch countDownLatch;
+
+    static final String TASK_RESOURCE_MYSQL = "mysql";
+    static final String TASK_RESOURCE_MQ = "mq";
 
     public TaskGenerator(AppConfig config, TaskDispatcher dispatcher) {
-        this.mqTaskConsumer = new RabbitMqTaskConsumer(config);
+
         this.mysqlTaskConsumer = new MysqlTaskConsumer();
         this.dispatcher = dispatcher;
-        consumeThread = new Thread(this::fetchMqTask, "TaskDispatcher");
-        delayScheduler = new Thread(this::fetchDelayTask, "DelayTaskFetcher");
+
+        String[] resources = config.getTaskResources();
+
+        for (String resource : resources) {
+            if (resource.equals(TASK_RESOURCE_MQ)) {
+                this.mqTaskConsumer = new RabbitMqTaskConsumer(config);
+                taskConsumeThreads.add(new Thread(this::fetchMqTask, "MqTaskConsumer"));
+            } else if (resource.equals(TASK_RESOURCE_MYSQL)) {
+                taskConsumeThreads.add(new Thread(this::fetchDelayTask, "MysqlTaskConsumer"));
+            } else {
+                throw new RuntimeException("unsupported task resource: " + resource);
+            }
+        }
+
+        this.countDownLatch = new CountDownLatch(taskConsumeThreads.size());
+
     }
 
     private void fetchDelayTask() {
@@ -69,9 +85,8 @@ public class TaskGenerator implements Service {
 
     @Override
     public void init() {
-        consumeThread.start();
-        delayScheduler.start();
-        LOG.info("started Consumer");
+        taskConsumeThreads.forEach(Thread::start);
+        LOG.info("started {} Consumers", taskConsumeThreads.size());
     }
 
     private void fetchMqTask() {
@@ -90,8 +105,7 @@ public class TaskGenerator implements Service {
 
     public void stop() throws InterruptedException {
         this.running = false;
-        this.consumeThread.interrupt();
-        this.delayScheduler.interrupt();
+        taskConsumeThreads.forEach(Thread::interrupt);
         countDownLatch.await();
     }
 }

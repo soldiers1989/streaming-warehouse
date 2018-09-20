@@ -152,85 +152,8 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
         }
     }
 
-    public void handleDelayTask(MysqlTask task) {
-        Summary.Timer timer = MetricReporter.startUpdate();
-        long startTime = System.currentTimeMillis();
-        LOG.info("mysql file task start: {}", task.getTaskInfo().getFilePath());
-        UpdateMutation updateMutation = new UpdateMutation(task.getTaskInfo().getDb(), task.getTaskInfo().getTbl(),
-                task.getTaskInfo().getPartitionName(), task.getTaskInfo().getPartitions(),
-                config.getMetastoreUris(), ConfigFactory.getHbaseConf());
-        try {
-            Path path = new Path(task.getTaskInfo().getFilePath());
-            FileSystem fileSystem = FileSystem.get(new Configuration());
-            if (!fileSystem.exists(path)) {
-                LOG.warn("path not exist: {}", task.getTaskInfo().getFilePath());
-                dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
-                return;
-            }
-            Long bytes = fileSystem.getFileStatus(path).getLen();
-            try (AvroFileReader reader = new AvroFileReader(path);) {
-                Schema recordSchema = reader.getSchema();
-                updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
-                while (reader.hasNext()) {
-                    GenericData.Record record = reader.next();
-                    updateMutation.update(record, false);
-                }
-            }
-            updateMutation.commitTransaction();
-            dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
-            MetricReporter.updatedBytes(bytes);
-            long endTime = System.currentTimeMillis();
-            LOG.info("mysql file task success: {} cost: {}ms", task.getTaskInfo().getFilePath(), endTime - startTime);
-
-        } catch (DataDelayedException e) {
-            //no need to update task status to delay again
-            LOG.info("task delay again: {}", task.getTaskInfo());
-            dbTaskStatusListener.onTaskDelay(task.getTaskInfo());
-        } catch (TransactionException e) {
-            if (e.getCause() instanceof LockException) {
-                try {
-                    LOG.warn("failed to lock for delay mysql task, txnId: {}, file: {}", updateMutation.getTransactionId(), task.getTaskInfo().getFilePath());
-                    // not update info in database
-                } catch (Exception ex) {
-                    LOG.error("failed to process lock exception", ex);
-                }
-            } else {
-                LOG.error("caught txn exception", e);
-                // not update info in database
-            }
-            updateMutation.abortTxn();
-        } catch (Throwable t) {
-            LOG.error("file task failed: " + task.getTaskInfo().getFilePath(), t);
-            try {
-                updateMutation.abortTxn();
-                dbTaskStatusListener.onTaskError(task.getTaskInfo());
-            } catch (Exception e) {
-                LOG.error("error abort txn", e);
-            }
-        } finally {
-            try {
-                timer.observeDuration();
-            } catch (Exception e) {
-                LOG.error("error closing client", e);
-            }
-        }
-    }
-
     public void process(ConsumedTask consumedTask) {
         this.taskQueue.offer(consumedTask);
-    }
-
-    public void stop() {
-        this.stop = true;
-        while (taskQueue.size() != 0) {
-            try {
-                LOG.info("stopping Update-Processor-{}, remaining {} tasks...", id, taskQueue.size());
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                //no pots
-            }
-        }
-        LOG.info("stopped Update-Processor-{}", id);
     }
 
     @Override
@@ -301,4 +224,19 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             }
         }
     }
+
+    public void stop() {
+        this.stop = true;
+        this.thread.interrupt();
+        while (taskQueue.size() != 0) {
+            try {
+                LOG.info("stopping Update-Processor-{}, remaining {} tasks...", id, taskQueue.size());
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                //no pots
+            }
+        }
+        LOG.info("stopped Update-Processor-{}", id);
+    }
+
 }

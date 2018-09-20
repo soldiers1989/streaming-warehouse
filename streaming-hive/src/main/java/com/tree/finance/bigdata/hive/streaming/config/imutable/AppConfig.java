@@ -33,17 +33,9 @@ public abstract class AppConfig {
     @Config("processor.update.cores")
     @Default("5")
     public abstract Integer getUpdateProcessorCores();
-
-    //task retry config
-    @Config("task.retries.on.data.delayed")
-    @Default("2")
-    public abstract Integer getTaskRetriesOnDataDelay();
-    @Config("task.retry.interval.sec.on.data.delay")
-    @Default("120")
-    public abstract Integer getTaskRetryIntervalSecOnDataDelay();
-    @Config("task.retries.on.error")
-    @Default("3")
-    public abstract Integer getTaskRetriesOnError();
+    @Config("processor.delay.cores")
+    @Default("0")
+    public abstract int getDelayProcessorCores();
 
     //hive config
     @Config("metastore.uris")
@@ -73,6 +65,10 @@ public abstract class AppConfig {
     @Config("task.delay.max.retries")
     @Default("3")
     public abstract int getDelayTaskMaxRetries();
+    @Config("task.resources")
+    @Default("mq")
+    public abstract String[] getTaskResources();
+
 
     //task database config
     @Config("task.db.url")
@@ -84,4 +80,5 @@ public abstract class AppConfig {
     @Config("task.tbl.name")
     @Default("task_info")
     public abstract String getTaskTleName();
+
 }
