@@ -26,6 +26,7 @@ import static com.tree.finance.bigdata.schema.SchemaConstants.PROP_KEY_LOGICAL_T
  */
 public class RecordUtils {
 
+    public static String[] DEFAULT_UPDATE_COL;
     public static String[] UPDATE_IDENTIFIER;
     public static String[] CREATE_IDENTIFIER;
     public static String[] TIME_IDENTIFIER;
@@ -33,6 +34,7 @@ public class RecordUtils {
 
     static {
         try {
+            DEFAULT_UPDATE_COL = ConfigFactory.getConfig().getProperty(GLOBAL_UPDATE_COLUMN).split(",");
             UPDATE_IDENTIFIER = ConfigFactory.getConfig().getProperty(COLUMN_UPDATE_IDENTIFIER).split(",");
             TIME_IDENTIFIER = ConfigFactory.getConfig().getProperty(COLUMN_TIME_IDENTIFIER).split(",");
             CREATE_IDENTIFIER = ConfigFactory.getConfig().getProperty(COLUMN_CREATE_IDENTIFIER).split(",");
@@ -52,8 +54,19 @@ public class RecordUtils {
         }else {
             List<Schema.Field> fields = fileSchema.getField(FIELD_AFTER).schema().getFields();
 
+            //find from global settings first
             for (Schema.Field f : fields) {
                 String fieldName = f.name().toLowerCase();
+                for (String global : DEFAULT_UPDATE_COL){
+                    if (global.equalsIgnoreCase(fieldName)){
+                        tableToUpdateCol.put(table, f.name()) ;
+                        return f.name();
+                    }
+                }
+            }
+            for (Schema.Field f : fields) {
+                String fieldName = f.name().toLowerCase();
+
                 boolean matchUpdate = false;
                 boolean matchTime = false;
                 for (String updateStr : UPDATE_IDENTIFIER) {
@@ -77,7 +90,7 @@ public class RecordUtils {
                 }
             }
             //put empty avoid retry 
-            LOG.warn("found no update time column for table: {}, schema: {}", table, fileSchema);
+            LOG.warn("found no update column for table: {}, schema: {}", table, fileSchema);
             tableToUpdateCol.put(table, "");
             return "";
         }
@@ -121,8 +134,8 @@ public class RecordUtils {
     
     public static Long getFieldAsTimeMillis(String fieldName, GenericData.Record data) {
         if (StringUtils.isEmpty(fieldName)){
-            LOG.error("update time not found in record field: {}, value: {}", fieldName, data);
-            throw new RuntimeException("update time not found in record value");
+            LOG.error("update time not found");
+            throw new RuntimeException("update column not found");
         }
         Schema fieldSchema = data.getSchema().getField(FIELD_AFTER).schema().getField(fieldName).schema();
         Object value = ((GenericData.Record)data.get(FIELD_AFTER)).get(fieldName);
@@ -145,7 +158,7 @@ public class RecordUtils {
         }
 
         LOG.error("update column not in support type, column: {}, schema: {}", fieldName, fieldSchema);
-        throw new RuntimeException("update column not found");
+        throw new RuntimeException("update column not supported type");
 
     }
 

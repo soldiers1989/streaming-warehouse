@@ -61,7 +61,7 @@ public class DelayTaskProcessor {
             try {
                 handleDelayTask(taskQueue.take());
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                // no opt
             } catch (Throwable t) {
                 LOG.error("unexpected ERROR !!!", t);
             }

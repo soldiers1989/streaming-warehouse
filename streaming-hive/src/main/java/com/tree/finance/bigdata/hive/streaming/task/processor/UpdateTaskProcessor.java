@@ -65,7 +65,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 try {
                     task = taskQueue.take();
                 } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                    //no opt
                 }
                 if (task == null) {
                     continue;

@@ -16,7 +16,7 @@ CLASS_PATH="${conf_dir}:${lib_dir}/*:$hadoop_conf_dir:$HADOOP_CLASS_PATH:${HBASE
 export HADOOP_USER_NAME="hive"
 
 DEBUG_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=12346"
-JVM_OPTS="-Xmx1G -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${log_dir} "
+JVM_OPTS="-Xmx4G -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${log_dir} "
 
 if [ ! -e ${log_dir} ]; then
   mkdir -p ${log_dir}
@@ -26,6 +26,12 @@ pid=`ps -ef | grep com.tree.finance.bigdata.hive.streaming.StreamingWarehouse |g
 if [ "" != ${pid}"" ]; then
   echo "StreamingWarehouse already started"
   exit
+fi
+
+if [ $1"_x" = "debug_x" ]
+then
+  echo "start as debug mode"
+  JVM_OPTS="${JVM_OPTS} ${DEBUG_OPTS} "
 fi
 
 cmd="java ${JVM_OPTS} -Dapp.config.file=$conf_dir/program.properties -Dlog_file=${log_file} -Dlog_dir=${log_dir} -classpath $CLASS_PATH  ${main_class} $@"

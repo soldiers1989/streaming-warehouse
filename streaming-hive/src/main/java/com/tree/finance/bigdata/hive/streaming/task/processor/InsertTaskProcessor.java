@@ -60,6 +60,8 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             try {
                 RabbitMqTask task = taskQueue.take();
                 handleMqTask(task);
+            } catch (InterruptedException e) {
+                //no opt
             } catch (Throwable t) {
                 LOG.error("unexpected ERROR !!!", t);
             }

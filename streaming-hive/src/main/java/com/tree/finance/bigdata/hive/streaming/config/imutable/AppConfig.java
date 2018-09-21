@@ -63,7 +63,7 @@ public abstract class AppConfig {
     @Default("5")
     public abstract int getDelayScheduleMin();
     @Config("task.delay.max.retries")
-    @Default("3")
+    @Default("5")
     public abstract int getDelayTaskMaxRetries();
     @Config("task.resources")
     @Default("mq")
