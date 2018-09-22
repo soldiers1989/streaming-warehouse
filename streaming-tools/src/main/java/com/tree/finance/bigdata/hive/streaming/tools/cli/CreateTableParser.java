@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.cli;
+package com.tree.finance.bigdata.hive.streaming.tools.cli;
 
 import org.apache.commons.cli.*;
 

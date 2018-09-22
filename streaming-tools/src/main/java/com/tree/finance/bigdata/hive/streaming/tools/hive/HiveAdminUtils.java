@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.utils.hive;
+package com.tree.finance.bigdata.hive.streaming.tools.hive;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

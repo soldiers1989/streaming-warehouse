@@ -120,14 +120,14 @@ public class HFileWriter extends RecordWriter<ImmutableBytesWritable, KeyValue>{
     private WriterLength getNewWriter(byte[] family, Configuration confx) throws IOException {
         WriterLength wl = new WriterLength();
         Path familydir = new Path(outputPath, Bytes.toString(family));
-        Compression.Algorithm compression = (Compression.Algorithm)compressionMap.get(family);
+        Compression.Algorithm compression = compressionMap.get(family);
         compression = compression == null ? defaultCompression : compression;
-        BloomType bloomType = (BloomType)bloomTypeMap.get(family);
+        BloomType bloomType = bloomTypeMap.get(family);
         bloomType = bloomType == null ? BloomType.NONE : bloomType;
-        Integer blockSize = (Integer)blockSizeMap.get(family);
+        Integer blockSize = blockSizeMap.get(family);
         blockSize = blockSize == null ? 65536 : blockSize;
         DataBlockEncoding encoding = overriddenEncoding;
-        encoding = encoding == null ? (DataBlockEncoding)datablockEncodingMap.get(family) : encoding;
+        encoding = encoding == null ? datablockEncodingMap.get(family) : encoding;
         encoding = encoding == null ? DataBlockEncoding.NONE : encoding;
         Configuration tempConf = new Configuration(confx);
         tempConf.setFloat("hfile.block.cache.size", 0.0F);
@@ -152,7 +152,7 @@ public class HFileWriter extends RecordWriter<ImmutableBytesWritable, KeyValue>{
             w.close();
         }
     }
-    public void close(TaskAttemptContext c) throws IOException, InterruptedException {
+    public void close(TaskAttemptContext c) throws IOException {
         Iterator iterator = this.writers.values().iterator();
 
         while(iterator.hasNext()) {

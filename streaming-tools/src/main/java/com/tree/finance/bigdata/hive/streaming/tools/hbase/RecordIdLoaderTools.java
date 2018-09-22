@@ -1,9 +1,9 @@
-package com.tree.finance.bigdata.hive.streaming.cli;
+package com.tree.finance.bigdata.hive.streaming.tools.hbase;
 
-import com.tree.finance.bigdata.hive.streaming.config.Constants;
-import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
+import com.tree.finance.bigdata.hive.streaming.tools.config.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.tools.config.Constants;
 import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.RecordUtils;
 import com.tree.finance.bigdata.utils.common.CollectionUtils;
@@ -18,6 +18,7 @@ import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.hadoop.hive.ql.io.AcidInputFormat;
 import org.apache.hadoop.hive.ql.io.RecordIdentifier;
@@ -37,11 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_CONF_FILE;
-import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_PASSWORD;
-import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_RECORDID_TBL_SUFFIX;
-import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.BUCKET_COUNT;
 
 /**
  * @author Zhengsj
@@ -129,10 +125,10 @@ public class RecordIdLoaderTools {
 
         //found primaryKey
         Properties properties = new Properties();
-        properties.load(CreateTools.class.getResourceAsStream(MYSQL_DB_CONF_FILE));
+        properties.load(RecordIdLoaderTools.class.getResourceAsStream(Constants.MYSQL_DB_CONF_FILE));
         String mysqlUrl = properties.getProperty(db);
         String user = properties.getProperty(Constants.MYSQL_DB_USER);
-        String password = properties.getProperty(MYSQL_DB_PASSWORD);
+        String password = properties.getProperty(Constants.MYSQL_DB_PASSWORD);
 
         this.primaryKeyIndex = getPrimaryKeyIndexs(mysqlUrl, user, password);
         this.updateTimeIndex = getUpdateTimeIndex();
@@ -192,7 +188,7 @@ public class RecordIdLoaderTools {
                 conf.set("mapred.input.dir", path);
                 conf.set("schema.evolution.columns", columns);
                 conf.set("schema.evolution.columns.types", types);
-                conf.setInt(BUCKET_COUNT, 1);
+                conf.setInt(hive_metastoreConstants.BUCKET_COUNT, 1);
                 JobConf jobConf = new JobConf(conf);
                 OrcInputFormat inputFormat = new OrcInputFormat();
                 InputSplit[] inputSplits = inputFormat.getSplits(jobConf, 1);
@@ -207,7 +203,7 @@ public class RecordIdLoaderTools {
                     hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 7);
                 }
 
-                HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX,
+                HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX,
                         hbaseConf);
 
                 for (InputSplit inputSplit : inputSplits) {

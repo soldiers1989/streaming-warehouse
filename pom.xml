@@ -13,11 +13,12 @@
         <module>streaming-avro</module>
         <module>streaming-hive</module>
         <module>streaming-common</module>
+        <module>streaming-tools</module>
     </modules>
 
     <properties>
         <ver.slf4j>1.7.5</ver.slf4j>
-        <ver.hadoop>2.6.4</ver.hadoop>
+        <ver.hadoop>2.6.0-cdh5.12.1</ver.hadoop>
         <ver.typesafe.config>1.3.3</ver.typesafe.config>
         <ver.avro>1.8.2</ver.avro>
         <ver.kafka>0.11.0.0</ver.kafka>
@@ -135,5 +136,12 @@
             </url>
         </snapshotRepository>
     </distributionManagement>
+
+    <repositories>
+        <repository>
+            <id>cloudera</id>
+            <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+        </repository>
+    </repositories>
 
 </project>

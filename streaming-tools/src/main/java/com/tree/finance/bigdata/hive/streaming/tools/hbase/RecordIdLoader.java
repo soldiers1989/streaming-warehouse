@@ -1,6 +1,6 @@
-package com.tree.finance.bigdata.hive.streaming.cli;
+package com.tree.finance.bigdata.hive.streaming.tools.hbase;
 
-import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.tools.config.ConfigHolder;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
@@ -38,7 +38,7 @@ public class RecordIdLoader {
             List<String> tables = iMetaStoreClient.getAllTables(parser.getDb());
             for (String table : tables) {
                 try {
-                    new RecordIdLoaderTools(parser.getDb(), table, parser.getCores()).load();
+                    new BulkIdLoader(parser.getDb(), table, parser.getCores()).load();
                 } catch (Exception e) {
                     System.out.println("ERROR: failed to load table: " + table);
                     e.printStackTrace();
@@ -46,7 +46,7 @@ public class RecordIdLoader {
             }
             iMetaStoreClient.close();
         } else {
-            new RecordIdLoaderTools(parser.getDb(), parser.getTable(), parser.getCores()).load();
+            new BulkIdLoader(parser.getDb(), parser.getTable(), parser.getCores()).load();
         }
 
     }

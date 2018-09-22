@@ -1,10 +1,11 @@
-package com.tree.finance.bigdata.hive.streaming.cli;
+package com.tree.finance.bigdata.hive.streaming.tools.cli;
 
-import com.tree.finance.bigdata.hive.streaming.utils.hive.HiveDDLUtils;
+
+import com.tree.finance.bigdata.hive.streaming.tools.config.Constants;
+import com.tree.finance.bigdata.hive.streaming.tools.hive.HiveDDLUtils;
 
 import java.util.Properties;
 
-import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_CONF_FILE;
 
 /**
  * @author Zhengsj
@@ -29,7 +30,7 @@ public class CreateTools {
         }
 
         Properties properties = new Properties();
-        properties.load(CreateTools.class.getResourceAsStream(MYSQL_DB_CONF_FILE));
+        properties.load(CreateTools.class.getResourceAsStream(Constants.MYSQL_DB_CONF_FILE));
         HiveDDLUtils hiveDDLUtils = new HiveDDLUtils(properties);
 
 

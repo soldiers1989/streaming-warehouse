@@ -19,13 +19,16 @@ fi
 main_class=""
 
 if [ ${op} == "createHiveTbl" ] ; then
-  main_class="com.tree.finance.bigdata.hive.streaming.cli.CreateTools"
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.cli.CreateTools"
 
 elif [ ${op} == "loadRecId" ] ; then
-  main_class="com.tree.finance.bigdata.hive.streaming.cli.RecordIdLoader"
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.hbase.RecordIdLoader"
 
 elif [ ${op} == "setCheckTime" ] ; then
-  main_class="com.tree.finance.bigdata.hive.streaming.cli.CheckTimeConfigTools"
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.cli.CheckTimeConfigTools"
+
+else
+  exit
 
 fi
 

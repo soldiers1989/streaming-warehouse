@@ -1,7 +1,7 @@
-package com.tree.finance.bigdata.hive.streaming.utils.hive;
+package com.tree.finance.bigdata.hive.streaming.tools.hive;
 
-import com.tree.finance.bigdata.hive.streaming.config.Constants;
-import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.tools.config.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.tools.config.Constants;
 import com.tree.finance.bigdata.hive.streaming.utils.RecordUtils;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hive.jdbc.HiveDriver;
@@ -19,8 +19,9 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_PASSWORD;
-import static com.tree.finance.bigdata.hive.streaming.config.Constants.MYSQL_DB_USER;
+import static com.tree.finance.bigdata.hive.streaming.tools.config.Constants.MYSQL_DB_PASSWORD;
+import static com.tree.finance.bigdata.hive.streaming.tools.config.Constants.MYSQL_DB_USER;
+
 
 /**
  * @author Zhengsj

@@ -30,6 +30,7 @@ public class HbaseUtils {
     private Integer batchSize;
 
     private List<Put> buffer;
+
     private Table htable;
 
     public static String PRE_SPLIT_REGIONS = "table.pre.split.regions";
@@ -179,4 +180,7 @@ public class HbaseUtils {
         htable.close();
     }
 
+    public Table getHtable() {
+        return htable;
+    }
 }

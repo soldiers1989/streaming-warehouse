@@ -1,6 +1,5 @@
 package com.tree.finance.bigdata.hive.streaming.mutation;
 
-import com.tree.finance.bigdata.hive.streaming.constants.TestConstants;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.AvroObjectInspector;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -28,6 +27,8 @@ import java.util.List;
 public class TestMutate {
 
     private Configuration conf = new Configuration();
+    
+    String schemaStr = "";
 
     Table table = new Table("acid_test", "test_acid",
             null, 0, 0, 0, null, null, null, null, null, null);
@@ -43,7 +44,7 @@ public class TestMutate {
     @Test
     public void testInsert() throws Exception {
 
-        schema = new Schema.Parser().parse(TestConstants.schemaStr);
+        schema = new Schema.Parser().parse(schemaStr);
 
         MutatorFactory factory = new AvroMutationFactory(conf, new AvroObjectInspector(null, null, schema, null));
         MutatorClient client = new MutatorClientBuilder()
@@ -83,9 +84,9 @@ public class TestMutate {
     @Test
     public void testUpdate() throws Exception {
 
-        System.out.println(TestConstants.updateSchemaStr);
+        System.out.println(schemaStr);
 
-        schema = new Schema.Parser().parse(TestConstants.updateSchemaStr);
+        schema = new Schema.Parser().parse(schemaStr);
 
         MutatorFactory factory = new AvroMutationFactory(conf, new AvroObjectInspector(null, null, schema, null));
         MutatorClient client = new MutatorClientBuilder()
@@ -147,7 +148,7 @@ public class TestMutate {
 
     private GenericData.Record buildInsertRecord(long id, String msg, long rowId) {
 
-        schema = new Schema.Parser().parse(TestConstants.updateSchemaStr);
+        schema = new Schema.Parser().parse(schemaStr);
 
         GenericRecordBuilder afterBuilder = new GenericRecordBuilder(schema.getField("after").schema());
         afterBuilder.set("id", id);

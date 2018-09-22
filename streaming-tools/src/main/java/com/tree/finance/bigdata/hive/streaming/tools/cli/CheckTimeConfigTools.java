@@ -1,7 +1,7 @@
-package com.tree.finance.bigdata.hive.streaming.cli;
+package com.tree.finance.bigdata.hive.streaming.tools.cli;
 
-import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
+import com.tree.finance.bigdata.hive.streaming.tools.config.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.hbase.client.Put;
