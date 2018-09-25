@@ -20,6 +20,7 @@
                 <exclude>log4j:*</exclude>
                 <exclude>org.slf4j:slf4j-log4j12</exclude>
                 <exclude>org.apache.avro:avro</exclude>
+                <exclude>org.apache.spark:*</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>

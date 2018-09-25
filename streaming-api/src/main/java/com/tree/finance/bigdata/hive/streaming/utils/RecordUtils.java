@@ -199,6 +199,11 @@ public class RecordUtils {
     }
 
     public static Long getFieldAsTimeMillis(Object value) {
+
+        if (null == value){
+            return null;
+        }
+
         if (value instanceof TimestampWritable) {
             return ((TimestampWritable)value).getTimestamp().getTime();
         }else if (value instanceof DateWritable) {

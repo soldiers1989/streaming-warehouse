@@ -1,12 +1,13 @@
 package com.tree.finance.bigdata.hive.streaming.mutation.inspector;
 
 import com.tree.finance.bigdata.hive.streaming.mutation.AvroStructField;
-import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
 import com.tree.finance.bigdata.schema.LogicalType;
 import com.tree.finance.bigdata.schema.SchemaConstants;
 import com.tree.finance.bigdata.utils.common.StringUtils;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.apache.hadoop.hive.ql.io.RecordIdentifier;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
@@ -16,7 +17,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-import static com.tree.finance.bigdata.schema.SchemaConstants.*;
+import static com.tree.finance.bigdata.schema.SchemaConstants.FIELD_AFTER;
+import static com.tree.finance.bigdata.schema.SchemaConstants.PROP_KEY_LOGICAL_TYPE;
 
 /**
  * @author Zhengsj
@@ -30,12 +32,15 @@ public class AvroObjectInspector extends StructObjectInspector {
     private static Logger LOG = LoggerFactory.getLogger(AvroObjectInspector.class);
     private String db;
     private String table;
-    private HbaseUtils hbaseUtils;
+//    private HbaseUtils hbaseUtils;
 
-    public AvroObjectInspector(String db, String table, Schema schema, HbaseUtils hbaseUtils) {
+    private Object2ObjectMap<String, RecordIdentifier> bizId2RecIdMap;
+
+    public AvroObjectInspector(String db, String table, Schema schema, Object2ObjectMap bizId2RecIdMap) {
         this.db = db;
         this.table = table;
-        this.hbaseUtils = hbaseUtils;
+//        this.hbaseUtils = hbaseUtils;
+        this.bizId2RecIdMap = bizId2RecIdMap;
         init(schema);
     }
 
@@ -43,7 +48,7 @@ public class AvroObjectInspector extends StructObjectInspector {
 
         int pos = 0;
         fields.add(new AvroStructField("recordId", pos++, new RecIdObjectInspector(
-                db, table, schema.getField(SchemaConstants.FIELD_KEY).schema(), hbaseUtils)));
+                schema.getField(SchemaConstants.FIELD_KEY).schema(), bizId2RecIdMap)));
 
         //数据字段
         ArrayList<StructField> colFields = new ArrayList();
@@ -99,7 +104,7 @@ public class AvroObjectInspector extends StructObjectInspector {
             case DOUBLE:
                 return PrimitiveObjectInspectorFactory.javaDoubleObjectInspector;
             case RECORD:
-                return new AvroObjectInspector(db, table, fieldShema, hbaseUtils);
+                return new AvroObjectInspector(db, table, fieldShema, bizId2RecIdMap);
             case UNION: //仅存在两个元素，并且其中一个为NULL的场景
                 for (Schema schema : fieldShema.getTypes()) {
                     if (!schema.getType().equals(Schema.Type.NULL)) {

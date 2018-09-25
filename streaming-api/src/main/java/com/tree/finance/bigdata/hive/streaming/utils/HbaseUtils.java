@@ -1,5 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
+import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -137,6 +138,10 @@ public class HbaseUtils {
             LOG.error("failed to get rowId from HBase rowKey: {}\n{}" + rowKey, e);
             throw new RuntimeException(e);
         }
+    }
+
+    public Result[] getAll(List<Get> gets) throws IOException {
+        return htable.get(gets);
     }
 
     public static void createTale(String tableName, String familyStr, int regions) throws IOException {

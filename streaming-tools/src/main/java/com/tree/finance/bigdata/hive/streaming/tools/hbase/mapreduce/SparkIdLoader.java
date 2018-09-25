@@ -12,6 +12,8 @@ import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.io.hfile.CacheConfig;
@@ -37,16 +39,12 @@ import org.apache.hive.jdbc.HiveDriver;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.VoidFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -54,7 +52,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Description:
  * Created in 2018/9/21 15:02
  */
-public class SparkIdLoader {
+public class SparkIdLoader implements Serializable {
 
     private String db;
     private String table;
@@ -72,27 +70,187 @@ public class SparkIdLoader {
     private int totalPartitions = 0;
 
     private static String CONJECT = "_";
-    private Logger LOG = LoggerFactory.getLogger(RecordIdLoaderTools.class);
 
-    private final long cacheRecords = 10000000;
+    private long cacheRecords;
 
     private AtomicInteger finishedTasks = new AtomicInteger(0);
 
-    public SparkIdLoader(String db, String table, int cores) {
+    SparkConf sparkConf;
+
+
+    public SparkIdLoader(String db, String table, int cores, long cacheRecords) {
+        this.cacheRecords = cacheRecords;
         this.cores = cores;
         this.db = db;
         this.table = table;
         this.columnFamily = Bytes.toBytes(ConfigFactory.getHbaseColumnFamily());
         this.recordIdentifier = Bytes.toBytes(ConfigFactory.getHbaseRecordIdColumnIdentifier());
         this.updateTimeIdentifier = Bytes.toBytes(ConfigFactory.getHbaseUpdateTimeColumnIdentifier());
+        sparkConf = new SparkConf();
+    }
+
+    public static void main(String[] args) throws Exception {
+
+        System.setProperty("HADOOP_USER_NAME", "hbase");
+
+        int cores = Integer.valueOf(args[0]);
+        String db = args[1];
+        long cacheRecords = Long.valueOf(args[2]);
+        String tableSplits[] = args.length >= 4 ? args[3].split(",") : null;
+
+        JavaSparkContext sparkContext = new JavaSparkContext();
+
+        if (null == tableSplits || tableSplits.length == 0) {
+            HiveConf hiveConf = new HiveConf();
+            hiveConf.set("hive.metastore.uris", ConfigHolder.getConfig().getMetastoreUris());
+            IMetaStoreClient iMetaStoreClient = new HiveMetaStoreClient(hiveConf);
+            List<String> list = iMetaStoreClient.getAllTables(db);
+            tableSplits = list.toArray(new String[list.size()]);
+            iMetaStoreClient.close();
+        }
+        for (String t : tableSplits) {
+            try {
+                new SparkIdLoader(db, t, cores, cacheRecords).load(sparkContext);
+            } catch (Exception e) {
+                System.out.println("ERROR: failed to load table: " + t);
+                throw e;
+            }
+
+        }
 
     }
 
-    public void load() throws Exception {
+
+    private class KVComparator implements Comparator<Cell> {
+        @Override
+        public int compare(Cell left, Cell right) {
+            int compare = CellComparator.compare(left, right, false);
+            return compare;
+        }
+    }
+
+    private class LoadFunction implements VoidFunction<Iterator<String>>, Serializable {
+
+        @Override
+        public void call(Iterator<String> stringIterator) throws Exception {
+            long wroteRecords = 0;
+            TreeSet<KeyValue> kvSets = new TreeSet<>(new KVComparator());
+            StoreFile.Writer writer = null;
+            Path outPut = null;
+            while (stringIterator.hasNext()) {
+                Path path = new Path(stringIterator.next());
+                Configuration conf = new Configuration();
+                conf.set("mapred.input.dir", path.toString());
+                conf.set("schema.evolution.columns", columns);
+                conf.set("schema.evolution.columns.types", types);
+                conf.setInt(hive_metastoreConstants.BUCKET_COUNT, 1);
+                if (writer == null) {
+                    FileSystem fs = FileSystem.get(new Configuration());
+                    outPut = new Path("/tmp/streaming-hbase/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
+                    Integer mb = Integer.valueOf(sparkConf.get("table_size"));
+                    Configuration hbaseConf = ConfigFactory.getHbaseConf();
+                    if (mb > 100 && mb < 500) {
+                        hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 3);
+                    } else if (mb > 500 && mb < 1000) {
+                        hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 5);
+                    } else if (mb > 1000) {
+                        hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 7);
+                    }
+                    if (!fs.exists(outPut)) {
+                        fs.mkdirs(outPut);
+                    }
+                    StoreFile.WriterBuilder wb = new StoreFile.WriterBuilder(conf, new CacheConfig(hbaseConf), fs);
+                    HFileContext fileContext = new HFileContext();
+                    writer = wb.withFileContext(fileContext)
+                            .withOutputDir(new Path(outPut, Bytes.toString(columnFamily)))
+                            .withBloomType(BloomType.NONE)
+                            .withComparator(KeyValue.COMPARATOR)
+                            .build();
+                }
+
+                JobConf jobConf = new JobConf(conf);
+                OrcInputFormat inputFormat = new OrcInputFormat();
+                InputSplit[] inputSplits = inputFormat.getSplits(jobConf, 1);
+                AcidInputFormat.Options options = new AcidInputFormat.Options(conf);
+
+                for (InputSplit inputSplit : inputSplits) {
+                    AcidInputFormat.RowReader<OrcStruct> inner = inputFormat.getReader(inputSplit, options);
+                    RecordIdentifier identifier = inner.createKey();
+                    OrcStruct value = inner.createValue();
+                    StringBuilder idSb = new StringBuilder();
+                    StringBuilder busiIdSb = new StringBuilder();
+
+                    while (inner.next(identifier, value)) {
+                        //RecordId
+                        idSb.delete(0, idSb.length());
+                        idSb.append(identifier.getTransactionId()).append(CONJECT)
+                                .append(identifier.getBucketId()).append(CONJECT)
+                                .append(identifier.getRowId());
+                        //businessId
+                        busiIdSb.delete(0, busiIdSb.length());
+                        for (Integer keyIndex : primaryKeyIndex) {
+                            busiIdSb.append(value.getFieldValue(keyIndex)).append(CONJECT);
+                        }
+                        String rowKey = GenericRowIdUtils.addIdWithHash(busiIdSb.deleteCharAt(busiIdSb.length() - 1).toString());
+                        Long updateTime = RecordUtils.getFieldAsTimeMillis(value.getFieldValue(updateTimeIndex));
+
+                        if (null == updateTime) {
+                            //set update_time to 0
+                            updateTime = 0L;
+                        }
+
+                        long current = System.currentTimeMillis();
+                        byte[] key = Bytes.toBytes(rowKey);
+                        kvSets.add(new KeyValue(key, columnFamily, recordIdentifier, current,
+                                KeyValue.Type.Put, Bytes.toBytes(idSb.toString())));
+                        kvSets.add(new KeyValue(key, columnFamily, updateTimeIdentifier, current,
+                                KeyValue.Type.Put, Bytes.toBytes(updateTime)));
+                        wroteRecords++;
+                    }
+                    inner.close();
+                }
+
+                if (wroteRecords >= cacheRecords) {
+
+                    System.out.println("ready to flush");
+
+                    for (KeyValue kv : kvSets) {
+                        writer.append(kv);
+                    }
+
+                    writer.close();
+                    wroteRecords = 0;
+                    kvSets.clear();
+                    HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX,
+                            ConfigFactory.getHbaseConf());
+                    HTable table = (HTable) hbaseUtils.getHtable();
+                    new LoadIncrementalHFiles(ConfigFactory.getHbaseConf()).doBulkLoad(outPut, table);
+                    writer = null;
+                }
+//                System.out.println(String.format("finished %.2f, %s", (finishedTasks.incrementAndGet() * 1.0) / totalPartitions, path));
+
+            }
+            if (writer != null) {
+                writer.close();
+                kvSets.clear();
+                HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX,
+                        ConfigFactory.getHbaseConf());
+                HTable table = (HTable) hbaseUtils.getHtable();
+                new LoadIncrementalHFiles(ConfigFactory.getHbaseConf()).doBulkLoad(outPut, table);
+                hbaseUtils.close();
+            }
+        }
+    }
+
+    public void load(JavaSparkContext sparkContext) throws Exception {
         HiveConf hiveConf = new HiveConf();
         hiveConf.set("hive.metastore.uris", ConfigHolder.getConfig().getMetastoreUris());
         IMetaStoreClient iMetaStoreClient = new HiveMetaStoreClient(hiveConf);
-        prepare(iMetaStoreClient);
+
+        if (!prepare(iMetaStoreClient)) {
+            return;
+        }
+
         PartitionSpecProxy proxy = iMetaStoreClient.listPartitionSpecs(db, table, Integer.MAX_VALUE);
         Iterator<Partition> iterator = proxy.getPartitionIterator();
 
@@ -102,6 +260,8 @@ public class SparkIdLoader {
         long spaceBytes = fs.getContentSummary(tablePath).getSpaceConsumed();
         final long mb = spaceBytes / 3 / 1024 / 1024;
         System.out.println(table + "storage size: " + mb + "mb");
+
+        sparkConf.set("table_size", Long.toString(mb));
 
         List<String> paths = new ArrayList<>();
         while (iterator.hasNext()) {
@@ -113,134 +273,19 @@ public class SparkIdLoader {
             paths.add(path);
         }
 
-        SparkConf sparkConf = new SparkConf();
-        JavaSparkContext sparkContext = new JavaSparkContext(sparkConf);
-        sparkContext.parallelize(paths, cores).foreachPartition(new VoidFunction<Iterator<String>>() {
-            @Override
-            public void call(Iterator<String> stringIterator) throws Exception {
-
-                long wroteRecords = 0;
-                TreeSet<KeyValue> kvSets = new TreeSet<>(new KeyValue.KVComparator());
-                StoreFile.Writer writer = null;
-                Path outPut = null;
-
-                while (stringIterator.hasNext()) {
-                    Path path = new Path(stringIterator.next());
-                    try {
-                        Configuration conf = new Configuration();
-                        conf.set("mapred.input.dir", path.toString());
-                        conf.set("schema.evolution.columns", columns);
-                        conf.set("schema.evolution.columns.types", types);
-                        conf.setInt(hive_metastoreConstants.BUCKET_COUNT, 1);
-                        if (writer == null) {
-                            FileSystem fs = FileSystem.get(new Configuration());
-                            outPut = new Path("/tmp/streaming-hbase/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
-                            Configuration hbaseConf = ConfigFactory.getHbaseConf();
-                            if (mb > 100 && mb < 500) {
-                                hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 3);
-                            } else if (mb > 500 && mb < 1000) {
-                                hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 5);
-                            } else if (mb > 1000) {
-                                hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 7);
-                            }
-                            if (!fs.exists(outPut)) {
-                                fs.mkdirs(outPut);
-                            }
-                            StoreFile.WriterBuilder wb = new StoreFile.WriterBuilder(conf, new CacheConfig(hbaseConf), fs);
-                            HFileContext fileContext = new HFileContext();
-                            writer = wb.withFileContext(fileContext)
-                                    .withOutputDir(new Path(outPut, Bytes.toString(columnFamily)))
-                                    .withBloomType(BloomType.NONE)
-                                    .withComparator(KeyValue.COMPARATOR)
-                                    .build();
-                        }
-
-                        JobConf jobConf = new JobConf(conf);
-                        OrcInputFormat inputFormat = new OrcInputFormat();
-                        InputSplit[] inputSplits = inputFormat.getSplits(jobConf, 1);
-                        AcidInputFormat.Options options = new AcidInputFormat.Options(conf);
-
-                        for (InputSplit inputSplit : inputSplits) {
-                            AcidInputFormat.RowReader<OrcStruct> inner = inputFormat.getReader(inputSplit, options);
-                            RecordIdentifier identifier = inner.createKey();
-                            OrcStruct value = inner.createValue();
-                            StringBuilder idSb = new StringBuilder();
-                            StringBuilder busiIdSb = new StringBuilder();
-
-                            while (inner.next(identifier, value)) {
-                                //RecordId
-                                idSb.delete(0, idSb.length());
-                                idSb.append(identifier.getTransactionId()).append(CONJECT)
-                                        .append(identifier.getBucketId()).append(CONJECT)
-                                        .append(identifier.getRowId());
-                                //businessId
-                                busiIdSb.delete(0, busiIdSb.length());
-                                for (Integer keyIndex : primaryKeyIndex) {
-                                    busiIdSb.append(value.getFieldValue(keyIndex)).append(CONJECT);
-                                }
-                                String rowKey = GenericRowIdUtils.addIdWithHash(busiIdSb.deleteCharAt(busiIdSb.length() - 1).toString());
-                                Long updateTime = RecordUtils.getFieldAsTimeMillis(value.getFieldValue(updateTimeIndex));
-
-                                long current = System.currentTimeMillis();
-                                byte[] key = Bytes.toBytes(rowKey);
-                                kvSets.add(new KeyValue(key, columnFamily, recordIdentifier, current,
-                                        KeyValue.Type.Put, Bytes.toBytes(idSb.toString())));
-                                kvSets.add(new KeyValue(key, columnFamily, updateTimeIdentifier, current,
-                                        KeyValue.Type.Put, Bytes.toBytes(updateTime)));
-                                wroteRecords++;
-                            }
-
-                            inner.close();
-                        }
-
-                        if (wroteRecords >= cacheRecords) {
-
-                            System.out.println("ready to flush");
-
-                            for (KeyValue kv : kvSets) {
-                                writer.append(kv);
-                            }
-
-                            writer.close();
-                            wroteRecords = 0;
-                            kvSets.clear();
-                            HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX,
-                                    ConfigFactory.getHbaseConf());
-                            HTable table = (HTable) hbaseUtils.getHtable();
-                            new LoadIncrementalHFiles(ConfigFactory.getHbaseConf()).doBulkLoad(outPut, table);
-                            writer = null;
-                        }
-                        System.out.println(String.format("finished %.2f, %s", (finishedTasks.incrementAndGet() * 1.0) / totalPartitions, path
-                        ));
-                    } catch (Exception e) {
-                        LOG.error("failed to load: {}", path, e);
-                        System.out.println("ERROR: failed to load: " + path);
-                    }
-
-                }
-                try {
-                    if (writer != null) {
-                        writer.close();
-                        kvSets.clear();
-                        HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX,
-                                ConfigFactory.getHbaseConf());
-                        HTable table = (HTable) hbaseUtils.getHtable();
-                        new LoadIncrementalHFiles(ConfigFactory.getHbaseConf()).doBulkLoad(outPut, table);
-                        hbaseUtils.close();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    throw new RuntimeException();
-                }
-            }
-        });
+        if (paths.isEmpty()) {
+            return;
+        }
 
         System.out.println("table: " + table + ", total partitions: " + totalPartitions);
+        sparkContext.parallelize(paths, cores).foreachPartition(new LoadFunction());
+
+
         iMetaStoreClient.close();
         System.out.println("finished loading table: " + table);
     }
 
-    private void prepare(IMetaStoreClient iMetaStoreClient) throws Exception {
+    private boolean prepare(IMetaStoreClient iMetaStoreClient) throws Exception {
         List<FieldSchema> fieldSchemas = iMetaStoreClient.getFields(db, table);
         StringBuilder columnsBuilder = new StringBuilder();
         StringBuilder typesBuilder = new StringBuilder();
@@ -251,7 +296,6 @@ public class SparkIdLoader {
         }
         this.columns = columnsBuilder.deleteCharAt(columnsBuilder.length() - 1).toString();
         this.types = typesBuilder.deleteCharAt(typesBuilder.length() - 1).toString();
-        LOG.info("columns: {}, types: {}", columns, types);
 
         //found primaryKey
         Properties properties = new Properties();
@@ -262,17 +306,30 @@ public class SparkIdLoader {
 
         this.primaryKeyIndex = getPrimaryKeyIndexs(mysqlUrl, user, password);
         this.updateTimeIndex = getUpdateTimeIndex();
-        if (CollectionUtils.isEmpty(primaryKeyIndex)) {
-            throw new RuntimeException("primary key not found for table: " + db + "." + table);
+
+        if (primaryKeyIndex.isEmpty()) {
+            return false;
         }
-        LOG.info("primary key index: {}, update time col: {}", Arrays.toString(primaryKeyIndex.toArray()), updateTimeIndex);
+
+        if (updateTimeIndex == null) {
+            return false;
+        }
+
+        if (CollectionUtils.isEmpty(primaryKeyIndex)) {
+            System.out.println("primary key not found for table: " + db + "." + table);
+            return false;
+        }
+
+        return true;
     }
 
     private Integer getUpdateTimeIndex() {
         String updateTimeCol = RecordUtils.getCreateTimeCol(db + "." + table, columnList);
         if (StringUtils.isEmpty(updateTimeCol)) {
-            throw new RuntimeException("update time column not found");
+            System.out.println(String.format("update time not found for table: %s", table));
+            return null;
         }
+        System.out.println(String.format("update time for table: %s, is %s", table, updateTimeCol));
         return columnList.indexOf(updateTimeCol);
     }
 
@@ -294,9 +351,6 @@ public class SparkIdLoader {
                     keyIndexes.add(i);
                 }
             }
-        }
-        if (keyIndexes.isEmpty()) {
-            throw new RuntimeException("not primary key found");
         }
         return keyIndexes;
     }

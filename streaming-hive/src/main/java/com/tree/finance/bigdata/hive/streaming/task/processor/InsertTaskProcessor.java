@@ -8,6 +8,7 @@ import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
 import com.tree.finance.bigdata.hive.streaming.utils.InsertMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
 import com.tree.finance.bigdata.task.TaskInfo;
+import com.tree.finance.bigdata.utils.common.CollectionUtils;
 import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -55,11 +56,11 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
 
 
     public void run() {
-
         while (!stop || !taskQueue.isEmpty()) {
             try {
                 RabbitMqTask task = taskQueue.take();
-                handleMqTask(task);
+//                handleMqTask(task);
+                handleToEnd(task);
             } catch (InterruptedException e) {
                 //no opt
             } catch (Throwable t) {
@@ -67,6 +68,61 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             }
         }
         LOG.info("{}, stopped", Thread.currentThread().getName());
+    }
+
+    private void handleToEnd(RabbitMqTask task) {
+        InsertMutation mutationUtils = new InsertMutation(task.getTaskInfo().getDb(),
+                task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
+                task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
+        try {
+            long start = System.currentTimeMillis();
+            LOG.info("single task start: {}", task.getTaskInfo().getFilePath());
+            handleTask(mutationUtils, task.getTaskInfo());
+            LOG.info("single task success: {}, cost: {}ms", task.getTaskInfo().getFilePath(), System.currentTimeMillis() - start);
+
+            long batchStart = System.currentTimeMillis();
+            List<TaskInfo> handled = handleMoreTaskToEnd(task, mutationUtils);
+            mutationUtils.commitTransaction();
+
+            if (CollectionUtils.isEmpty(handled)) {
+                LOG.info("{} batch task success, cost {}ms", handled.size(), System.currentTimeMillis() - batchStart);
+            }
+
+            try {
+                mqTaskStatusListener.onTaskSuccess(task);
+                dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
+                dbTaskStatusListener.onTaskSuccess(handled);
+            } catch (Exception e) {
+                // ignore ack failure. Cause once success, source file is renamed, and will not be retried
+                LOG.warn("ack success failed, will not affect data accuracy", e);
+            }
+
+            MetricReporter.insertFiles(handled.size() + 1, thread.getName());
+
+        } catch (TransactionException e) {
+            try {
+                if (e.getCause() instanceof LockException) {
+                    LOG.warn("failed to lock for mq task, txnId: {}, file: {}", mutationUtils.getTransactionId(),
+                            task.getTaskInfo().getFilePath());
+                } else {
+                    LOG.error("txn exception", e);
+                }
+                mutationUtils.abortTxn();
+            } catch (Exception ex) {
+                LOG.error("error handle transaction exception", ex);
+            } finally {
+                mqTaskStatusListener.onTaskError(task);
+            }
+        } catch (Throwable t) {
+            LOG.error("file task failed: {}", task.getTaskInfo(), t);
+            try {
+                mutationUtils.abortTxn();
+                mqTaskStatusListener.onTaskError(task);
+                dbTaskStatusListener.onTaskError(task.getTaskInfo());
+            } catch (Throwable e) {
+                LOG.error("error abort txn", e);
+            }
+        }
     }
 
     private void handleMqTask(RabbitMqTask task) {
@@ -80,7 +136,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             LOG.info("single task success: {}, cost: {}ms", task.getTaskInfo().getFilePath(), System.currentTimeMillis() - start);
             mutationUtils.commitTransaction();
             try {
-                mqTaskStatusListener.onTaskSuccess((RabbitMqTask) task);
+                mqTaskStatusListener.onTaskSuccess(task);
                 dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
             } catch (Exception e) {
                 // ignore ack failure. Cause once success, source file is renamed, and will not be retried
@@ -156,11 +212,27 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 }
                 mutationUtils.abortTxn();
             } catch (Throwable t) { //if other error try batch by single
-                LOG.error("file task failed, {}", processing);
+                LOG.error("file task failed " + processing.getFilePath(), t);
                 mutationUtils.abortTxn();
                 dbTaskStatusListener.onTaskError(processing);
             }
         }
+    }
+
+
+    protected List<TaskInfo> handleMoreTaskToEnd(RabbitMqTask task, InsertMutation mutationUtils) throws Exception {
+        TaskInfo previousTaskInfo = task.getTaskInfo();
+        List<TaskInfo> moreTasks = getSameTask(previousTaskInfo);
+        if (!CollectionUtils.isEmpty(moreTasks)) {
+            LOG.info("going to process {} more tasks", moreTasks.size());
+            long start;
+            for (TaskInfo sameTask : moreTasks) {
+                start = System.currentTimeMillis();
+                handleTask(mutationUtils, sameTask);
+                LOG.info("additional task success in batch: {}, cost: {}", sameTask.getFilePath(), System.currentTimeMillis() - start);
+            }
+        }
+        return moreTasks;
     }
 
 
@@ -172,16 +244,14 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             return;
         }
         try (AvroFileReader reader = new AvroFileReader(new Path(task.getFilePath()))) {
-            Schema recordSchema = reader.getSchema();
             if (!mutationUtils.txnOpen()) {
+                Schema recordSchema = reader.getSchema();
                 mutationUtils.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
             }
-            Long bytes = fileSystem.getFileStatus(path).getLen();
             while (reader.hasNext()) {
                 GenericData.Record record = reader.next();
                 mutationUtils.insert(record);
             }
-            MetricReporter.insertedBytes(bytes);
         }
     }
 

@@ -41,6 +41,11 @@ public class TestHbaseUtil {
     }
 
     @Test
+    public void testBatchGet() {
+
+    }
+
+    @Test
     public void testInsert() throws Exception{
         Table table = connection.getTable(TableName.valueOf("testTbl"));
         byte[] columnFamily = Bytes.toBytes("f");

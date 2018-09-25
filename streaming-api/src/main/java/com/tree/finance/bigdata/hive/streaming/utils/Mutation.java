@@ -6,10 +6,14 @@ import com.tree.finance.bigdata.hive.streaming.mutation.AvroMutationFactory;
 import com.tree.finance.bigdata.hive.streaming.mutation.HiveLockFailureListener;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.AvroObjectInspector;
 import com.tree.finance.bigdata.utils.common.StringUtils;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.ql.io.RecordIdentifier;
 import org.apache.hive.hcatalog.streaming.mutate.client.AcidTable;
 import org.apache.hive.hcatalog.streaming.mutate.client.MutatorClient;
 import org.apache.hive.hcatalog.streaming.mutate.client.MutatorClientBuilder;
@@ -72,6 +76,8 @@ public abstract class Mutation {
     protected DynamicConfig dynamicConfig;
 
     protected Long latestUpdateTime;
+
+    protected Object2ObjectMap<String, RecordIdentifier> bizToRecIdMap =  new Object2ObjectOpenHashMap<>();
 
     protected Mutation(String db, String table, String partition, List<String> partitions, String metastoreUris,
                        Configuration hbaseConf) {
@@ -185,30 +191,42 @@ public abstract class Mutation {
             LOG.error("update column not found for table: {}, schema: {}", db + "." + table, schema);
             throw new RuntimeException("update column not found");
         }
+
+        if (null == this.hbaseUtils) {
+            this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
+        }
+
         this.recordSchema = schema;
         this.factory = new AvroMutationFactory(new Configuration(), new AvroObjectInspector(db,
-                table, schema, hbaseUtils));
+                table, schema, bizToRecIdMap));
         this.mutatorClient = new MutatorClientBuilder()
                 .configuration(conf)
                 .lockFailureListener(new HiveLockFailureListener())
                 .addSinkTable(db, table, partition, true)
                 .metaStoreUri(metastoreUris)
                 .build();
+
+        long start = System.currentTimeMillis();
         this.mutatorClient.connect();
+        LOG.info("client connect cost: {}ms", System.currentTimeMillis() - start);
+
+        long start2 = System.currentTimeMillis();
         this.mutateTransaction = mutatorClient.newTransaction();
+        LOG.info("new transaction cost: {}ms", System.currentTimeMillis() - start2);
+
+        long lockStart = System.currentTimeMillis();
         this.transactionId = mutateTransaction.getTransactionId();
         //once we got new transaction, set initialized even when this transaction have not begun
         this.txnOpen = true;
         this.mutateTransaction.begin();
+        LOG.info("begin transaction: {}, cost: {}ms", transactionId, System.currentTimeMillis() - lockStart);
+
         List<AcidTable> destinations = mutatorClient.getTables();
         this.mutateCoordinator = new MutatorCoordinatorBuilder()
                 .metaStoreUri(metastoreUris)
                 .table(destinations.get(0))
                 .mutatorFactory(this.factory)
                 .build();
-        if (null == this.hbaseUtils) {
-            this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
-        }
     }
 
     public void beginStreamTransaction(Schema schema, HiveConf conf) throws Exception {

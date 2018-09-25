@@ -48,7 +48,7 @@ public class MysqlTaskConsumer implements TaskConsumer<MysqlTask> {
                 List<String> partitions = getPartition(parName);
                 String filePath = rs.getString(5);
                 Operation op = Operation.forCode(rs.getString(6));
-                Integer attempt =  rs.getInt(7);
+                Integer attempt = rs.getInt(7);
                 result.add(new MysqlTask(new TaskInfo(id, db, table, partitions, parName, filePath, op, attempt)));
             }
         } catch (Exception e) {

@@ -3,6 +3,7 @@ package com.tree.finance.bigdata.hive.streaming.task.listener;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.task.TaskInfo;
 import com.tree.finance.bigdata.task.TaskStatus;
+import com.tree.finance.bigdata.utils.common.CollectionUtils;
 import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +102,11 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
 
     @Override
     public void onTaskSuccess(List<TaskInfo> tasks) {
+
+        if (CollectionUtils.isEmpty(tasks)){
+            return;
+        }
+
         for (TaskInfo taskInfo : tasks) {
             TaskStatusListener.taskFileOnSuccess(taskInfo.getFilePath());
         }

@@ -5,6 +5,7 @@ import com.tree.finance.bigdata.kafka.connect.sink.fs.config.DfsConfigHolder;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.avro.AvroWriterRef;
 import com.tree.finance.bigdata.task.FileSuffix;
+import com.tree.finance.bigdata.task.Operation;
 import com.tree.finance.bigdata.task.TaskInfo;
 import com.tree.finance.bigdata.task.TaskStatus;
 import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
@@ -43,7 +44,9 @@ public class FileManager {
 
     private RabbitMqUtils rabbitMqUtils;
 
-    private final String queueName;
+    private final String queueNameUpdate;
+
+    private final String queueNameInsert;
 
     private static final Logger LOG = LoggerFactory.getLogger(FileManager.class);
 
@@ -53,7 +56,8 @@ public class FileManager {
 
     public FileManager(SinkConfig sinkConfig) {
         this.sinkConfig = sinkConfig;
-        this.queueName = sinkConfig.getRabbitMqTaskQueue();
+        this.queueNameUpdate = sinkConfig.getRabbitMqTaskQueue() + "_update";
+        this.queueNameInsert = sinkConfig.getRabbitMqTaskQueue() + "_insert";
         this.rabbitMqUtils = RabbitMqUtils.getInstance(sinkConfig.getRabbitMqHost(), sinkConfig.getRabbitMqPort());
         this.thread = new Thread(this::sendTask, "task-sender");
     }
@@ -103,7 +107,7 @@ public class FileManager {
 
                     try {
                         writeToDb(taskInfo);
-                        sendWithRetry(msgBody);
+                        sendWithRetry(msgBody, taskInfo.getOp());
                     }catch (Exception e) {
                         LOG.error("failed to create file path: []", path, e);
                         fs.rename(pathSent, path);
@@ -123,11 +127,17 @@ public class FileManager {
         LOG.info("FileManager stopped");
     }
 
-    private boolean sendWithRetry(String msgBody) {
+    private boolean sendWithRetry(String msgBody, Operation operation) {
         int retry = 0;
         while (retry++ < 3) {
             try {
-                rabbitMqUtils.produce(queueName, msgBody);
+
+                if (operation.equals(Operation.CREATE)) {
+                    rabbitMqUtils.produce(queueNameInsert, msgBody);
+                } else {
+                    rabbitMqUtils.produce(queueNameUpdate, msgBody);
+                }
+
                 return true;
             } catch (Exception e) {
                 LOG.error("error send task", e);

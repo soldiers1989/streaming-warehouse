@@ -17,15 +17,21 @@ then
 fi
 
 main_class=""
+out_log=""
 
 if [ ${op} == "createHiveTbl" ] ; then
+  export HADOOP_USER_NAME="hive"
   main_class="com.tree.finance.bigdata.hive.streaming.tools.cli.CreateTools"
+  out_log="create-hive-tbl.out"
 
 elif [ ${op} == "loadRecId" ] ; then
+  export HADOOP_USER_NAME="hbase"
   main_class="com.tree.finance.bigdata.hive.streaming.tools.hbase.RecordIdLoader"
+  out_log="load-id-"${2}".out"
 
 elif [ ${op} == "setCheckTime" ] ; then
   main_class="com.tree.finance.bigdata.hive.streaming.tools.cli.CheckTimeConfigTools"
+  out_log="set-check-time.out"
 
 else
   exit
@@ -54,4 +60,4 @@ fi
 cmd="java ${JVM_OPTS} -Dapp.config.file=$conf_dir/program.properties -Dlog_file=${log_file} -Dlog_dir=${log_dir} -classpath $CLASS_PATH  ${main_class} $@"
 
 exec ${cmd}
-#nohup ${cmd} 1>&2> ${log_dir}/tools.out &
+#nohup ${cmd} 1>&2> ${log_dir}/${out_log} &

@@ -70,8 +70,10 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 if (task == null) {
                     continue;
                 }
-                handle(task);
-                handleMoreTask(task.getTaskInfo());
+                if (handle(task)) {
+                    handleMoreTask(task.getTaskInfo());
+                }
+
             } catch (Throwable t) {
                 LOG.error("unexpected error", t);
             }
@@ -79,7 +81,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
         LOG.info("Update-Processor-{} stopped", id);
     }
 
-    private void handle(ConsumedTask task) {
+    private boolean handle(ConsumedTask task) {
         Summary.Timer timer = MetricReporter.startUpdate();
         long startTime = System.currentTimeMillis();
         LOG.info("file task start: {}", task.getTaskInfo().getFilePath());
@@ -93,25 +95,26 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 LOG.warn("path not exist: {}", task.getTaskInfo().getFilePath());
                 mqTaskStatusListener.onTaskSuccess((RabbitMqTask) task);
                 dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
-                return;
+                return false;
             }
-            Long bytes = fileSystem.getFileStatus(path).getLen();
 
+            long records = 0l;
             try (AvroFileReader reader = new AvroFileReader(path)) {
                 Schema recordSchema = reader.getSchema();
                 updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
                 while (reader.hasNext()) {
                     GenericData.Record record = reader.next();
-                    updateMutation.update(record, false);
+                    updateMutation.lazyUpdate(record);
+                    records++;
                 }
             }
-
             updateMutation.commitTransaction();
             mqTaskStatusListener.onTaskSuccess((RabbitMqTask) task);
             dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
-            MetricReporter.updatedBytes(bytes);
+            MetricReporter.updateFiles(1, thread.getName());
             long endTime = System.currentTimeMillis();
-            LOG.info("file task success: {} cost: {}ms", task.getTaskInfo().getFilePath(), endTime - startTime);
+            LOG.info("file task success: {}, records: {}, cost: {}ms", task.getTaskInfo().getFilePath(), records, endTime - startTime);
+            return true;
 
         } catch (DataDelayedException e) {
             LOG.info("task delay: {}", task.getTaskInfo());
@@ -150,6 +153,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 LOG.error("error closing client", e);
             }
         }
+        return false;
     }
 
     public void process(ConsumedTask consumedTask) {
@@ -174,22 +178,23 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 if (!fileSystem.exists(path)) {
                     LOG.warn("additional path not exist: {}", task.getFilePath());
                     dbTaskStatusListener.onTaskSuccess(task);
-                    continue;
+                    return;
                 }
-                Long bytes = fileSystem.getFileStatus(path).getLen();
+                long records = 0;
                 try (AvroFileReader reader = new AvroFileReader(path);) {
                     Schema recordSchema = reader.getSchema();
                     updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
                     while (reader.hasNext()) {
                         GenericData.Record record = reader.next();
-                        updateMutation.update(record, false);
+                        updateMutation.lazyUpdate(record);
+                        records++;
                     }
                 }
                 updateMutation.commitTransaction();
+                MetricReporter.updateFiles(1, thread.getName());
                 dbTaskStatusListener.onTaskSuccess(task);
-                MetricReporter.updatedBytes(bytes);
                 long endTime = System.currentTimeMillis();
-                LOG.info("additional file task success: {} cost: {}ms", task.getFilePath(), endTime - startTime);
+                LOG.info("additional file task success: {} records: {}, cost: {}ms", task.getFilePath(), records, endTime - startTime);
 
             } catch (TransactionException e) {
                 if (e.getCause() instanceof LockException) {
@@ -204,6 +209,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                     // not update info in database, but ack mq message
                 }
                 updateMutation.abortTxn();
+                return;
             } catch (DataDelayedException e) {
                 LOG.info("additional task delayed: {}", task);
                 dbTaskStatusListener.onTaskDelay(task);

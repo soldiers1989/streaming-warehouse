@@ -7,12 +7,14 @@ import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
 import com.tree.finance.bigdata.hive.streaming.task.processor.DelayTaskProcessor;
 import com.tree.finance.bigdata.hive.streaming.task.processor.InsertTaskProcessor;
 import com.tree.finance.bigdata.hive.streaming.task.processor.UpdateTaskProcessor;
+import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
 import com.tree.finance.bigdata.task.Operation;
 import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.Random;
 
 /**
  * @author Zhengsj
@@ -65,13 +67,19 @@ public class TaskDispatcher implements Service {
         if (null == consumedTask) {
             return;
         }
+
+//        Random random = new Random();
+//        int hash = Math.abs(random.nextInt(insertExecutor.length));
+
         int hash = Math.abs(Objects.hash(consumedTask.getTaskInfo().getDb(), consumedTask.getTaskInfo().getTbl(),
                 consumedTask.getTaskInfo().getPartitionName()));
 
         if (Operation.CREATE.equals(consumedTask.getTaskInfo().getOp())) {
             insertExecutor[hash % insertExecutor.length].process(consumedTask);
+            MetricReporter.consumedMsg(consumedTask.getTaskInfo().getOp());
         } else if (Operation.UPDATE.equals(consumedTask.getTaskInfo().getOp()) || Operation.DELETE.equals(consumedTask.getTaskInfo().getOp())) {
             updateExecutor[hash % updateExecutor.length].process(consumedTask);
+            MetricReporter.consumedMsg(consumedTask.getTaskInfo().getOp());
         } else {
             LOG.error("unsupported task type: {}", consumedTask.getTaskInfo());
             consumedTask.taskRejected();

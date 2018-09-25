@@ -2,10 +2,10 @@ package com.tree.finance.bigdata.hive.streaming.mutation.inspector;
 
 import com.tree.finance.bigdata.hive.streaming.mutation.AvroStructField;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
-import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hive.ql.io.RecordIdentifier;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
@@ -27,7 +27,6 @@ public class RecIdObjectInspector extends StructObjectInspector {
     private List<StructField> fields = new ArrayList<>();
     private Map<String, StructField> name2Fields = new HashMap<>();
     private Schema idSchema;
-    private String dbTableSuffix;
 
     private final String FIELD_NAME_ORIGINAL_TXN_FIELD = "originalTxnField";
     private final String FIELD_NAME_BUCKET_FIELD = "bucketField";
@@ -35,14 +34,10 @@ public class RecIdObjectInspector extends StructObjectInspector {
 
     private static Logger LOG = LoggerFactory.getLogger(RecIdObjectInspector.class);
 
-    private byte[] defaultFamily = Bytes.toBytes("f");
-    private byte[] defaultRowIdQualifier = Bytes.toBytes("recordId");
+    private Object2ObjectMap<String, RecordIdentifier> buizToRecId;
 
-    private HbaseUtils hbaseUtils;
-
-    RecIdObjectInspector(String db, String table, Schema idSchema, HbaseUtils hbaseUtils) {
-        this.hbaseUtils = hbaseUtils;
-        dbTableSuffix = "_" + db + "." + table;
+    RecIdObjectInspector(Schema idSchema, Object2ObjectMap<String, RecordIdentifier> buizToRecId) {
+        this.buizToRecId = buizToRecId;
         this.idSchema = idSchema;
         init();
     }
@@ -80,12 +75,11 @@ public class RecIdObjectInspector extends StructObjectInspector {
             }
             if (fieldRef.getFieldName().equals(FIELD_NAME_ROWID) || fieldRef.getFieldName().equals(FIELD_NAME_ORIGINAL_TXN_FIELD)) {
                 String businessId = GenericRowIdUtils.assembleBuizId((GenericData.Record) data, idSchema);
-                String rowId = hbaseUtils.getString(businessId, defaultFamily, defaultRowIdQualifier);
-                String[] rowIds = rowId.split("_");
+                RecordIdentifier rowId = buizToRecId.get(businessId);
                 if (fieldRef.getFieldName().equals(FIELD_NAME_ROWID)){
-                    return Long.valueOf(rowIds[2]);
+                    return rowId.getRowId();
                 } else if (fieldRef.getFieldName().equals(FIELD_NAME_ORIGINAL_TXN_FIELD)) {
-                    return Long.valueOf(rowIds[0]);
+                    return rowId.getTransactionId();
                 }
             }
             return null;

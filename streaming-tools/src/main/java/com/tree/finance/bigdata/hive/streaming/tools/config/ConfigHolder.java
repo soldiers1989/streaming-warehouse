@@ -1,9 +1,7 @@
 package com.tree.finance.bigdata.hive.streaming.tools.config;
 
 import com.tree.finance.bigdata.utils.common.StringUtils;
-import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hive.hcatalog.streaming.mutate.client.MutatorClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +26,7 @@ public class ConfigHolder {
 
     private static HiveConf initHiveConf() {
         HiveConf conf = new HiveConf();
-        conf.setInt(MutatorClient.TRANSACTIONAL_LOCK_RETIES_KEY, 1);
+//        conf.setInt(MutatorClient.TRANSACTIONAL_LOCK_RETIES_KEY, 1);
         return conf;
     }
 

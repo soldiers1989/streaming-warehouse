@@ -1,5 +1,6 @@
 package com.tree.finance.bigdata.hive.streaming.mutation;
 
+import com.tree.finance.bigdata.hive.streaming.mutation.inspector.AvroObjectInspector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.io.AcidOutputFormat;
@@ -17,13 +18,17 @@ public class AvroMutationFactory implements MutatorFactory {
 
     private Configuration configuration;
 
-    private ObjectInspector objectInspector;
+    private AvroObjectInspector objectInspector;
 
     private final int FIXED_RECORD_ID_COLUMN = 0;
 
-    public AvroMutationFactory(Configuration configuration, ObjectInspector objectInspector){
+    public AvroMutationFactory(Configuration configuration, AvroObjectInspector objectInspector){
         this.configuration = configuration;
         this.objectInspector = objectInspector;
+    }
+
+    public AvroObjectInspector getObjectInspector() {
+        return objectInspector;
     }
 
     @Override
