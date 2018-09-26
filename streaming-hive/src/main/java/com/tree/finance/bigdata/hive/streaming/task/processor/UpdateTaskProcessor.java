@@ -7,7 +7,6 @@ import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
-import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
 import com.tree.finance.bigdata.hive.streaming.utils.UpdateMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
 import com.tree.finance.bigdata.task.TaskInfo;
@@ -117,9 +116,10 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             return true;
 
         } catch (DataDelayedException e) {
-            LOG.info("task delay: {}", task.getTaskInfo());
+            LOG.info("task delay: {}", task.getTaskInfo().getFilePath());
             mqTaskStatusListener.onTaskDelay((RabbitMqTask) task);
             dbTaskStatusListener.onTaskDelay(task.getTaskInfo());
+            updateMutation.abortTxn();
         } catch (TransactionException e) {
             if (e.getCause() instanceof LockException) {
                 try {
@@ -213,6 +213,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             } catch (DataDelayedException e) {
                 LOG.info("additional task delayed: {}", task);
                 dbTaskStatusListener.onTaskDelay(task);
+                updateMutation.abortTxn();
             } catch (Throwable t) {
                 LOG.error("additional file task failed: " + task.getFilePath(), t);
                 try {

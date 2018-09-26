@@ -270,9 +270,17 @@ public class BulkIdLoader {
                             for (Integer keyIndex : primaryKeyIndex) {
                                 busiIdSb.append(value.getFieldValue(keyIndex)).append(CONJECT);
                             }
+
+                            if (busiIdSb.length() < 1) {
+                                LOG.warn("ignore no empty pk value");
+                                continue;
+                            }
+
                             String rowKey = GenericRowIdUtils.addIdWithHash(busiIdSb.deleteCharAt(busiIdSb.length() - 1).toString());
                             Long updateTime = RecordUtils.getFieldAsTimeMillis(value.getFieldValue(updateTimeIndex));
-
+                            if (null == updateTime) {
+                                updateTime = 0l;
+                            }
                             long current = System.currentTimeMillis();
                             kvSets.add(new KeyValue(Bytes.toBytes(rowKey), columnFamily, recordIdentifier, current,
                                     KeyValue.Type.Put, Bytes.toBytes(idSb.toString())));

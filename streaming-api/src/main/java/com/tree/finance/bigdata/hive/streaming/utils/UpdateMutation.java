@@ -89,7 +89,8 @@ public class UpdateMutation extends Mutation {
             String recordId = null == idBytes ? null : Bytes.toString(idBytes);
 
             if (null == recordId) {
-                throw new DataDelayedException("not recId HBase: "+ businessIds.get(i));
+                LOG.warn("no recordId in HBase: {}", businessIds.get(i));
+                throw new DataDelayedException("");
             }
 
             Long hbaseTime = null == timeBytes ? null : Bytes.toLong(timeBytes);
