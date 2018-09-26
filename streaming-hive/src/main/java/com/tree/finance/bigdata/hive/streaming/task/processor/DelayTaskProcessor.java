@@ -143,23 +143,26 @@ public class DelayTaskProcessor {
                 config.getMetastoreUris(), ConfigFactory.getHbaseConf());
         try {
             Path path = new Path(task.getTaskInfo().getFilePath());
+            long records = 0l;
             try (AvroFileReader reader = new AvroFileReader(path);) {
                 Schema recordSchema = reader.getSchema();
                 updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
                 while (reader.hasNext()) {
                     GenericData.Record record = reader.next();
                     updateMutation.lazyUpdate(record);
+                    records ++;
                 }
             }
             updateMutation.commitTransaction();
             dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
             long endTime = System.currentTimeMillis();
-            LOG.info("delay task success: {} cost: {}ms", task.getTaskInfo().getFilePath(), endTime - startTime);
+            LOG.info("delay task success: {} records: {} cost: {}ms", task.getTaskInfo().getFilePath(), records, endTime - startTime);
 
         } catch (DataDelayedException e) {
             //no need to update task status to delay again
             LOG.info("task delay again: {}", task.getTaskInfo());
             dbTaskStatusListener.onTaskDelay(task.getTaskInfo());
+            updateMutation.abortTxn();
         } catch (TransactionException e) {
             if (e.getCause() instanceof LockException) {
                 try {
