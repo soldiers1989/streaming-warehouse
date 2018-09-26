@@ -73,8 +73,6 @@ public class SparkIdLoader implements Serializable {
 
     private long cacheRecords;
 
-    private AtomicInteger finishedTasks = new AtomicInteger(0);
-
     SparkConf sparkConf;
 
 
@@ -115,7 +113,6 @@ public class SparkIdLoader implements Serializable {
                 System.out.println("ERROR: failed to load table: " + t);
                 throw e;
             }
-
         }
 
     }
@@ -147,19 +144,8 @@ public class SparkIdLoader implements Serializable {
                 if (writer == null) {
                     FileSystem fs = FileSystem.get(new Configuration());
                     outPut = new Path("/tmp/streaming-hbase/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
-                    Integer mb = Integer.valueOf(sparkConf.get("table_size"));
-                    Configuration hbaseConf = ConfigFactory.getHbaseConf();
-                    if (mb > 100 && mb < 500) {
-                        hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 3);
-                    } else if (mb > 500 && mb < 1000) {
-                        hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 5);
-                    } else if (mb > 1000) {
-                        hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 7);
-                    }
-                    if (!fs.exists(outPut)) {
-                        fs.mkdirs(outPut);
-                    }
-                    StoreFile.WriterBuilder wb = new StoreFile.WriterBuilder(conf, new CacheConfig(hbaseConf), fs);
+
+                    StoreFile.WriterBuilder wb = new StoreFile.WriterBuilder(conf, new CacheConfig(ConfigFactory.getHbaseConf()), fs);
                     HFileContext fileContext = new HFileContext();
                     writer = wb.withFileContext(fileContext)
                             .withOutputDir(new Path(outPut, Bytes.toString(columnFamily)))
@@ -263,6 +249,16 @@ public class SparkIdLoader implements Serializable {
 
         sparkConf.set("table_size", Long.toString(mb));
 
+        Configuration hbaseConf = ConfigFactory.getHbaseConf();
+        if (mb > 100 && mb < 500) {
+            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 3);
+        } else if (mb > 500 && mb < 1000) {
+            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 5);
+        } else if (mb > 1000) {
+            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 7);
+        }
+
+
         List<String> paths = new ArrayList<>();
         while (iterator.hasNext()) {
             String path = iterator.next().getSd().getLocation();
@@ -276,6 +272,11 @@ public class SparkIdLoader implements Serializable {
         if (paths.isEmpty()) {
             return;
         }
+
+        //create HBase table in driver
+        HbaseUtils utils = HbaseUtils.getTableInstance(db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
+        System.out.println("create HBase table in driver: " + db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX);
+        utils.close();
 
         System.out.println("table: " + table + ", total partitions: " + totalPartitions);
         sparkContext.parallelize(paths, cores).foreachPartition(new LoadFunction());

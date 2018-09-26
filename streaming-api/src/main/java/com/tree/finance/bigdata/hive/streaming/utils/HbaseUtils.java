@@ -167,10 +167,10 @@ public class HbaseUtils {
     }
 
     public void insertAsync(Put put) throws IOException {
-        if (buffer.size() >= batchSize) {
+        /*if (buffer.size() >= batchSize) {
             htable.put(buffer);
             buffer.clear();
-        }
+        }*/
         buffer.add(put);
     }
 

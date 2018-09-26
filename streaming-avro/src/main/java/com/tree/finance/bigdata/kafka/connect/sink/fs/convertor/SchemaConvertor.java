@@ -8,7 +8,6 @@ import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.errors.DataException;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.IntNode;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
 

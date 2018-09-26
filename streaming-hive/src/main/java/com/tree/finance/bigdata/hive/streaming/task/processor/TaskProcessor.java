@@ -48,11 +48,12 @@ public abstract class TaskProcessor {
         List<TaskInfo> list = new ArrayList<>();
         StringBuilder sb = new StringBuilder("select id, file_path, attempt from ")
                 .append(config.getTaskTleName()).append(SPACE)
-                .append("where db=").append(SQL_VALUE_QUOTE).append(taskInfo.getDb()).append(SQL_VALUE_QUOTE).append("and ")
-                .append("table_name =").append(SQL_VALUE_QUOTE).append(taskInfo.getTbl()).append(SQL_VALUE_QUOTE).append("and ")
+                .append("where db=").append(SQL_VALUE_QUOTE).append(taskInfo.getDb()).append(SQL_VALUE_QUOTE).append(" and ")
+                .append("table_name =").append(SQL_VALUE_QUOTE).append(taskInfo.getTbl()).append(SQL_VALUE_QUOTE).append(" and ")
                 .append("partition_name =").append(SQL_VALUE_QUOTE).append(taskInfo.getPartitionName()).append(SQL_VALUE_QUOTE).append("and ")
-                .append("op =").append(SQL_VALUE_QUOTE).append(taskInfo.getOp().code()).append(SQL_VALUE_QUOTE).append("and ")
-                .append(" status=").append(SQL_VALUE_QUOTE).append(TaskStatus.NEW).append(SQL_VALUE_QUOTE)
+                .append("op =").append(SQL_VALUE_QUOTE).append(taskInfo.getOp().code()).append(SQL_VALUE_QUOTE).append(" and ")
+                .append(" status=").append(SQL_VALUE_QUOTE).append(TaskStatus.NEW).append(SQL_VALUE_QUOTE).append(" and ")
+                .append(" id !=").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE)
                 .append(" order by id asc");
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement();
