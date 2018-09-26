@@ -134,18 +134,29 @@ public class SparkIdLoader implements Serializable {
             TreeSet<KeyValue> kvSets = new TreeSet<>(new KVComparator());
             StoreFile.Writer writer = null;
             Path outPut = null;
+
+            System.out.println("columns: " + columns);
+            System.out.println("column types: " + types);
+
             while (stringIterator.hasNext()) {
-                Path path = new Path(stringIterator.next());
+
+                String path = stringIterator.next();
+
                 Configuration conf = new Configuration();
-                conf.set("mapred.input.dir", path.toString());
+                conf.set("mapred.input.dir", path);
                 conf.set("schema.evolution.columns", columns);
                 conf.set("schema.evolution.columns.types", types);
                 conf.setInt(hive_metastoreConstants.BUCKET_COUNT, 1);
+
                 if (writer == null) {
                     FileSystem fs = FileSystem.get(new Configuration());
                     outPut = new Path("/tmp/streaming-hbase/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
 
-                    StoreFile.WriterBuilder wb = new StoreFile.WriterBuilder(conf, new CacheConfig(ConfigFactory.getHbaseConf()), fs);
+                    Configuration hbaseConf = ConfigFactory.getHbaseConf();
+                    if (!fs.exists(outPut)) {
+                        fs.mkdirs(outPut);
+                    }
+                    StoreFile.WriterBuilder wb = new StoreFile.WriterBuilder(conf, new CacheConfig(hbaseConf), fs);
                     HFileContext fileContext = new HFileContext();
                     writer = wb.withFileContext(fileContext)
                             .withOutputDir(new Path(outPut, Bytes.toString(columnFamily)))
@@ -177,33 +188,31 @@ public class SparkIdLoader implements Serializable {
                         for (Integer keyIndex : primaryKeyIndex) {
                             busiIdSb.append(value.getFieldValue(keyIndex)).append(CONJECT);
                         }
-                        String rowKey = GenericRowIdUtils.addIdWithHash(busiIdSb.deleteCharAt(busiIdSb.length() - 1).toString());
-                        Long updateTime = RecordUtils.getFieldAsTimeMillis(value.getFieldValue(updateTimeIndex));
 
-                        if (null == updateTime) {
-                            //set update_time to 0
-                            updateTime = 0L;
+                        if (busiIdSb.length() < 1) {
+                            System.out.println("ignore no empty pk value");
+                            continue;
                         }
 
+                        String rowKey = GenericRowIdUtils.addIdWithHash(busiIdSb.deleteCharAt(busiIdSb.length() - 1).toString());
+                        Long updateTime = RecordUtils.getFieldAsTimeMillis(value.getFieldValue(updateTimeIndex));
+                        if (null == updateTime) {
+                            updateTime = 0l;
+                        }
                         long current = System.currentTimeMillis();
-                        byte[] key = Bytes.toBytes(rowKey);
-                        kvSets.add(new KeyValue(key, columnFamily, recordIdentifier, current,
+                        kvSets.add(new KeyValue(Bytes.toBytes(rowKey), columnFamily, recordIdentifier, current,
                                 KeyValue.Type.Put, Bytes.toBytes(idSb.toString())));
-                        kvSets.add(new KeyValue(key, columnFamily, updateTimeIdentifier, current,
+                        kvSets.add(new KeyValue(Bytes.toBytes(rowKey), columnFamily, updateTimeIdentifier, current,
                                 KeyValue.Type.Put, Bytes.toBytes(updateTime)));
                         wroteRecords++;
                     }
-                    inner.close();
                 }
 
                 if (wroteRecords >= cacheRecords) {
-
                     System.out.println("ready to flush");
-
                     for (KeyValue kv : kvSets) {
                         writer.append(kv);
                     }
-
                     writer.close();
                     wroteRecords = 0;
                     kvSets.clear();
@@ -213,10 +222,15 @@ public class SparkIdLoader implements Serializable {
                     new LoadIncrementalHFiles(ConfigFactory.getHbaseConf()).doBulkLoad(outPut, table);
                     writer = null;
                 }
-//                System.out.println(String.format("finished %.2f, %s", (finishedTasks.incrementAndGet() * 1.0) / totalPartitions, path));
-
+                System.out.println(String.format("finished %s !!!", path));
             }
-            if (writer != null) {
+
+            System.out.println("to last phase");
+            if (writer != null && !kvSets.isEmpty()) {
+                System.out.println("final flush");
+                for (KeyValue kv : kvSets) {
+                    writer.append(kv);
+                }
                 writer.close();
                 kvSets.clear();
                 HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX,
@@ -227,6 +241,7 @@ public class SparkIdLoader implements Serializable {
             }
         }
     }
+
 
     public void load(JavaSparkContext sparkContext) throws Exception {
         HiveConf hiveConf = new HiveConf();
