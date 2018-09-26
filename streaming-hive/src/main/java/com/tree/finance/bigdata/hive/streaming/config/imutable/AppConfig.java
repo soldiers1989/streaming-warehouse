@@ -51,7 +51,7 @@ public abstract class AppConfig {
 
     //process strategy config
     @Config("delete.intermediate.file.on.success")
-    @Default("true")
+    @Default("false")
     public abstract boolean deleteAvroOnSuccess();
     @Config("task.greedy.process.batch.limit")
     @Default("10")
@@ -81,4 +81,7 @@ public abstract class AppConfig {
     @Default("task_info")
     public abstract String getTaskTleName();
 
+    @Config("intermediate.avro.backup.path")
+    @Default("/data/kafka-connect/done/")
+    public abstract String getIntermediateBackUpPath();
 }

@@ -1,9 +1,11 @@
 package com.tree.finance.bigdata.hive.streaming.task.listener;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
+import com.tree.finance.bigdata.task.TaskInfo;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +23,9 @@ public interface TaskStatusListener<T> {
 
     Logger LOG = LoggerFactory.getLogger(TaskStatusListener.class);
 
+    String backUpPath = ConfigHolder.getConfig().getIntermediateBackUpPath();
+
+    String PATH_SEP = "/";
 
     void onTaskSuccess(T t);
 
@@ -34,7 +39,8 @@ public interface TaskStatusListener<T> {
 
     void onTaskRetry(List<T> tasks);
 
-    static void taskFileOnSuccess(String filePath) {
+    static void taskFileOnSuccess(TaskInfo taskInfo) {
+        String filePath = taskInfo.getFilePath();
         try {
             if (ConfigHolder.getConfig().deleteAvroOnSuccess()) {
                 Configuration conf = new Configuration();
@@ -49,8 +55,28 @@ public interface TaskStatusListener<T> {
                 if (!fs.exists(new Path(filePath))) {
                     return;
                 }
-                Path newPath = new Path(filePath + FILE_PROCESSED_SUFFIX);
-                fs.rename(new Path(filePath), newPath);
+
+                DateTime dateTime = DateTime.now();
+                String currentDate = dateTime.toString("yyyy/MM/dd");
+
+                Path original = new Path(taskInfo.getFilePath());
+                StringBuilder sb = new StringBuilder(backUpPath)
+                        .append(taskInfo.getOp().name()).append(PATH_SEP)
+                        .append(currentDate).append(PATH_SEP)
+                        .append(taskInfo.getDb()).append(PATH_SEP)
+                        .append(taskInfo.getTbl()).append(PATH_SEP)
+                        .append(original.getName()).append(FILE_PROCESSED_SUFFIX);
+
+                Path newPath = new Path(sb.toString());
+
+                if (!fs.exists(newPath.getParent())){
+                    fs.mkdirs(newPath.getParent());
+                }
+
+                if (!fs.rename(original, newPath)){
+                    LOG.warn("may cause data inaccuracy, failed to rename processed file: {} to {}",
+                            filePath, newPath);
+                }
             }
         } catch (Exception e) {
             LOG.error("may cause data inaccuracy, failed to rename or delete processed file: {}", filePath, e);

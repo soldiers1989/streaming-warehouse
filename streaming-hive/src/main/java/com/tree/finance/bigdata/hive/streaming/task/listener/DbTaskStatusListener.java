@@ -34,7 +34,7 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
 
     @Override
     public void onTaskSuccess(TaskInfo taskInfo) {
-        TaskStatusListener.taskFileOnSuccess(taskInfo.getFilePath());
+        TaskStatusListener.taskFileOnSuccess(taskInfo);
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {
 
@@ -108,7 +108,7 @@ public class DbTaskStatusListener implements TaskStatusListener<TaskInfo> {
         }
 
         for (TaskInfo taskInfo : tasks) {
-            TaskStatusListener.taskFileOnSuccess(taskInfo.getFilePath());
+            TaskStatusListener.taskFileOnSuccess(taskInfo);
         }
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement()) {
