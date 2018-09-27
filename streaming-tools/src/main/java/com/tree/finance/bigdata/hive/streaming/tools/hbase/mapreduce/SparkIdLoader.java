@@ -293,6 +293,8 @@ public class SparkIdLoader implements Serializable {
         System.out.println("create HBase table in driver: " + db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX);
         utils.close();
 
+        Collections.shuffle(paths);
+
         System.out.println("table: " + table + ", total partitions: " + totalPartitions);
         sparkContext.parallelize(paths, cores).foreachPartition(new LoadFunction());
 

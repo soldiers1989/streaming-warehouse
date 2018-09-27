@@ -57,7 +57,7 @@ public abstract class AppConfig {
     @Default("10")
     public abstract int getGreedyProcessBatchLimit();
     @Config("database.task.info.on.success.strategy")
-    @Default("delete")
+    @Default("update")
     public abstract String getDBTaskInfoStrategyOnSuccess();
     @Config("task.delay.schedule.check.interval.min")
     @Default("5")
