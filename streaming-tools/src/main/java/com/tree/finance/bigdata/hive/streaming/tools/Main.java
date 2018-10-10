@@ -1,15 +1,12 @@
 package com.tree.finance.bigdata.hive.streaming.tools;
 
-import com.tree.finance.bigdata.hive.streaming.tools.hbase.HFileWriter;
+import com.tree.finance.bigdata.hive.streaming.tools.recId.loader.HFileWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.io.hfile.CacheConfig;
@@ -36,14 +33,14 @@ public class Main {
             byte[] family = Bytes.toBytes("f");
             // 配置文件设置
             Configuration conf = HBaseConfiguration.create();
-//            conf.set("hbase.master", "172.18.234.102:60020");
-//            conf.set("hbase.zookeeper.quorum", "172.18.234.102");
-//            conf.set("hbase.zookeeper.property.clientPort", "2181");
+//            conf.set("recId.master", "172.18.234.102:60020");
+//            conf.set("recId.zookeeper.quorum", "172.18.234.102");
+//            conf.set("recId.zookeeper.property.clientPort", "2181");
 
             conf.set("hbase.zookeeper.quorum", "cloudera2:2181,cloudera3:2181,cloudera1:2181");
-            conf.set("zookeeper.znode.parent", "/hbase");
+            conf.set("zookeeper.znode.parent", "/recId");
 
-            conf.set("hbase.metrics.showTableName", "false");
+            conf.set("recId.metrics.showTableName", "false");
             conf.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
             String outputdir = "/tmp/streaming-id/" + System.currentTimeMillis();
             Path dir = new Path(outputdir);
@@ -51,7 +48,7 @@ public class Main {
             FileSystem fs = familydir.getFileSystem(conf);
             BloomType bloomType = BloomType.NONE;
             Configuration tempConf = new Configuration(conf);
-            tempConf.set("hbase.metrics.showTableName", "false");
+            tempConf.set("recId.metrics.showTableName", "false");
             tempConf.setFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, 1.0f);
             // 实例化HFile的Writer，StoreFile实际上只是HFile的轻量级的封装
             StoreFile.Writer writer = null;
@@ -124,9 +121,9 @@ public class Main {
 
         Configuration conf = new Configuration();
         conf.set("hbase.zookeeper.quorum", "cloudera2:2181,cloudera3:2181,cloudera1:2181");
-        conf.set("zookeeper.znode.parent", "/hbase");
+        conf.set("zookeeper.znode.parent", "/recId");
 
-        Path out = new Path("/tmp/hbase-loader" + System.currentTimeMillis());
+        Path out = new Path("/tmp/recId-loader" + System.currentTimeMillis());
 
         HFileWriter fileWriter = new HFileWriter(out, conf);
 

@@ -44,7 +44,7 @@
         <dependency>
             <groupId>com.tree.finance.bigdata</groupId>
             <artifactId>streaming-api</artifactId>
-            <version>1.0</version>
+            <version>${streaming-api.ver}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.hive</groupId>

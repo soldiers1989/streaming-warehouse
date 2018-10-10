@@ -31,7 +31,7 @@ public class TestHbaseUtil {
     @Before
     public void before() throws Exception {
         config.set("hbase.zookeeper.quorum", zkStr);
-        config.set("zookeeper.znode.parent", "/hbase");
+        config.set("zookeeper.znode.parent", "/recId");
         connection = ConnectionFactory.createConnection(config);
     }
 

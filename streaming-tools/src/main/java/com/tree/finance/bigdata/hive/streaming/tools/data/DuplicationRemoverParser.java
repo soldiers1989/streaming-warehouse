@@ -1,23 +1,21 @@
-package com.tree.finance.bigdata.hive.streaming.tools.hbase;
+package com.tree.finance.bigdata.hive.streaming.tools.data;
 
 import org.apache.commons.cli.*;
 
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.List;
 
-/**
- * @author Zhengsj
- * Description:
- * Created in 2018/9/6 11:24
- */
-public class RecordIdLoaderParser {
+public class DuplicationRemoverParser {
     private static String OPTION_NAME_DB = "db";
     private static String OPTION_NAME_TBL = "table";
     private static String OPTION_CORES = "cores";
     private static String OPTION_NAME_HELP = "help";
+    private static String OPTION_PARTITION_FILER = "parFilter";
     private String[] args;
     private CommandLine commandLine;
 
-    public RecordIdLoaderParser(String[] args) {
+    public DuplicationRemoverParser(String[] args) {
         this.args = args;
     }
 
@@ -36,10 +34,13 @@ public class RecordIdLoaderParser {
                 .valueSeparator(',').desc("mysql database name(split by ,)").build();
         Option helpOption = Option.builder(OPTION_NAME_HELP).hasArg(false).required(false)
                 .desc("help").build();
+        Option parOption = Option.builder(OPTION_PARTITION_FILER).hasArg(true).required(false)
+                .desc("partition filter like: p_y=2018 and p_m=8").build();
 
         options.addOption(dbOption);
         options.addOption(tblOption);
         options.addOption(cores);
+        options.addOption(parOption);
         options.addOption(helpOption);
 
         return options;
@@ -58,8 +59,8 @@ public class RecordIdLoaderParser {
         return commandLine.getOptionValue(OPTION_NAME_DB);
     }
 
-    public String getTable() {
-        return commandLine.getOptionValue(OPTION_NAME_TBL);
+    public List<String> getTables() {
+        return Arrays.asList(commandLine.getOptionValues(OPTION_NAME_TBL));
     }
 
     public boolean isHelp() {
@@ -68,6 +69,10 @@ public class RecordIdLoaderParser {
 
     public int getCores() {
         return Integer.valueOf(commandLine.getOptionValue(OPTION_CORES));
+    }
+
+    public String getOptionPartitionFiler() {
+        return commandLine.getOptionValue(OPTION_PARTITION_FILER);
     }
 
     public void printHelp() {

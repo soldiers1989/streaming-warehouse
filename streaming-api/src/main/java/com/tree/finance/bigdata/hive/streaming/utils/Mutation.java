@@ -36,7 +36,7 @@ import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HB
  */
 public abstract class Mutation {
 
-    protected static final String BUCKET_ID = "0";
+    protected static final int BUCKET_ID = 0;
     protected static final byte[] columnFamily = Bytes.toBytes(ConfigFactory.getHbaseColumnFamily());
     protected static final byte[] recordIdColIdentifier = Bytes.toBytes(ConfigFactory.getHbaseRecordIdColumnIdentifier());
     protected static final byte[] updateTimeColIdentifier = Bytes.toBytes(ConfigFactory.getHbaseUpdateTimeColumnIdentifier());
@@ -77,6 +77,8 @@ public abstract class Mutation {
 
     protected Long latestUpdateTime;
 
+    protected long mutateRecords;
+
     protected Object2ObjectMap<String, RecordIdentifier> bizToRecIdMap =  new Object2ObjectOpenHashMap<>();
 
     protected Mutation(String db, String table, String partition, List<String> partitions, String metastoreUris,
@@ -93,9 +95,9 @@ public abstract class Mutation {
         return txnOpen;
     }
 
-    public void commitTransaction() throws Exception {
+    public long commitTransaction() throws Exception {
         if (!txnOpen()) {
-            return;
+            return 0;
         }
         closeHbaseUtil();
         closeMutator();
@@ -113,6 +115,8 @@ public abstract class Mutation {
             }
         }
         closeDynamicConfigQuietely();
+
+        return mutateRecords;
 
     }
 
@@ -264,6 +268,7 @@ public abstract class Mutation {
 
     public void beginFixTransaction(Schema schema, HiveConf conf) throws Exception {
         beginTransaction(schema, conf);
+        LOG.info("started fix transactin.");
         this.checkExist = true;
     }
 

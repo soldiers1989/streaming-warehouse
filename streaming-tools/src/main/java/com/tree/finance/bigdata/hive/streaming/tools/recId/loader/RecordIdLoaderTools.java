@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.tools.hbase;
+package com.tree.finance.bigdata.hive.streaming.tools.recId.loader;
 
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
@@ -229,7 +229,7 @@ public class RecordIdLoaderTools {
                         Put put = new Put(Bytes.toBytes(rowKey));
                         put.addColumn(columnFamily, recordIdentifier, Bytes.toBytes(idSb.toString()));
                         put.addColumn(columnFamily, updateTimeIdentifier, Bytes.toBytes(updateTime));
-                        hbaseUtils.insertAsync(put);
+                        hbaseUtils.syncPut(put);
                     }
                 }
                 hbaseUtils.close();

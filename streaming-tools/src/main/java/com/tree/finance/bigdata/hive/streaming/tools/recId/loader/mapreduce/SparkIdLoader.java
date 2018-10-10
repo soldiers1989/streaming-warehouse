@@ -1,10 +1,10 @@
-package com.tree.finance.bigdata.hive.streaming.tools.hbase.mapreduce;
+package com.tree.finance.bigdata.hive.streaming.tools.recId.loader.mapreduce;
 
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
 import com.tree.finance.bigdata.hive.streaming.tools.config.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.tools.config.Constants;
-import com.tree.finance.bigdata.hive.streaming.tools.hbase.RecordIdLoaderTools;
+import com.tree.finance.bigdata.hive.streaming.tools.recId.loader.RecordIdLoaderTools;
 import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
 import com.tree.finance.bigdata.hive.streaming.utils.RecordUtils;
 import com.tree.finance.bigdata.utils.common.CollectionUtils;
@@ -45,7 +45,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Zhengsj
@@ -89,7 +88,11 @@ public class SparkIdLoader implements Serializable {
 
     public static void main(String[] args) throws Exception {
 
-        System.setProperty("HADOOP_USER_NAME", "hbase");
+        System.setProperty("HADOOP_USER_NAME", "recId");
+
+        if (args.length < 3) {
+            System.out.println("args: cores db cacheRecords [table1,table2,...]");
+        }
 
         int cores = Integer.valueOf(args[0]);
         String db = args[1];
@@ -138,32 +141,15 @@ public class SparkIdLoader implements Serializable {
             System.out.println("columns: " + columns);
             System.out.println("column types: " + types);
 
+            Configuration conf = new Configuration();
+            conf.set("schema.evolution.columns", columns);
+            conf.set("schema.evolution.columns.types", types);
+            conf.setInt(hive_metastoreConstants.BUCKET_COUNT, 1);
+
             while (stringIterator.hasNext()) {
 
                 String path = stringIterator.next();
-
-                Configuration conf = new Configuration();
                 conf.set("mapred.input.dir", path);
-                conf.set("schema.evolution.columns", columns);
-                conf.set("schema.evolution.columns.types", types);
-                conf.setInt(hive_metastoreConstants.BUCKET_COUNT, 1);
-
-                if (writer == null) {
-                    FileSystem fs = FileSystem.get(new Configuration());
-                    outPut = new Path("/tmp/streaming-hbase/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
-
-                    Configuration hbaseConf = ConfigFactory.getHbaseConf();
-                    if (!fs.exists(outPut)) {
-                        fs.mkdirs(outPut);
-                    }
-                    StoreFile.WriterBuilder wb = new StoreFile.WriterBuilder(conf, new CacheConfig(hbaseConf), fs);
-                    HFileContext fileContext = new HFileContext();
-                    writer = wb.withFileContext(fileContext)
-                            .withOutputDir(new Path(outPut, Bytes.toString(columnFamily)))
-                            .withBloomType(BloomType.NONE)
-                            .withComparator(KeyValue.COMPARATOR)
-                            .build();
-                }
 
                 JobConf jobConf = new JobConf(conf);
                 OrcInputFormat inputFormat = new OrcInputFormat();
@@ -205,29 +191,59 @@ public class SparkIdLoader implements Serializable {
                         kvSets.add(new KeyValue(Bytes.toBytes(rowKey), columnFamily, updateTimeIdentifier, current,
                                 KeyValue.Type.Put, Bytes.toBytes(updateTime)));
                         wroteRecords++;
-                    }
-                }
 
-                if (wroteRecords >= cacheRecords) {
-                    System.out.println("ready to flush");
-                    for (KeyValue kv : kvSets) {
-                        writer.append(kv);
+                        if (wroteRecords >= cacheRecords) {
+                            System.out.println("ready to flush");
+                            long start = System.currentTimeMillis();
+                            //create HFile writer
+                            FileSystem fs = FileSystem.get(new Configuration());
+                            outPut = new Path("/tmp/streaming-recId/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
+                            Configuration hbaseConf = ConfigFactory.getHbaseConf();
+                            if (!fs.exists(outPut)) {
+                                fs.mkdirs(outPut);
+                            }
+                            StoreFile.WriterBuilder wb = new StoreFile.WriterBuilder(conf, new CacheConfig(hbaseConf), fs);
+                            HFileContext fileContext = new HFileContext();
+                            writer = wb.withFileContext(fileContext)
+                                    .withOutputDir(new Path(outPut, Bytes.toString(columnFamily)))
+                                    .withBloomType(BloomType.NONE)
+                                    .withComparator(KeyValue.COMPARATOR)
+                                    .build();
+
+                            for (KeyValue kv : kvSets) {
+                                writer.append(kv);
+                            }
+                            writer.close();
+                            wroteRecords = 0;
+                            kvSets.clear();
+                            HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX,
+                                    ConfigFactory.getHbaseConf());
+                            HTable table = (HTable) hbaseUtils.getHtable();
+                            new LoadIncrementalHFiles(ConfigFactory.getHbaseConf()).doBulkLoad(outPut, table);
+                            System.out.println("finished flush, cost: " + (System.currentTimeMillis() - start) + "ms");
+                        }
                     }
-                    writer.close();
-                    wroteRecords = 0;
-                    kvSets.clear();
-                    HbaseUtils hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + Constants.KEY_HBASE_RECORDID_TBL_SUFFIX,
-                            ConfigFactory.getHbaseConf());
-                    HTable table = (HTable) hbaseUtils.getHtable();
-                    new LoadIncrementalHFiles(ConfigFactory.getHbaseConf()).doBulkLoad(outPut, table);
-                    writer = null;
                 }
                 System.out.println(String.format("finished %s !!!", path));
             }
 
             System.out.println("to last phase");
-            if (writer != null && !kvSets.isEmpty()) {
+            if (!kvSets.isEmpty()) {
                 System.out.println("final flush");
+                FileSystem fs = FileSystem.get(new Configuration());
+                outPut = new Path("/tmp/streaming-recId/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
+
+                Configuration hbaseConf = ConfigFactory.getHbaseConf();
+                if (!fs.exists(outPut)) {
+                    fs.mkdirs(outPut);
+                }
+                StoreFile.WriterBuilder wb = new StoreFile.WriterBuilder(conf, new CacheConfig(hbaseConf), fs);
+                HFileContext fileContext = new HFileContext();
+                writer = wb.withFileContext(fileContext)
+                        .withOutputDir(new Path(outPut, Bytes.toString(columnFamily)))
+                        .withBloomType(BloomType.NONE)
+                        .withComparator(KeyValue.COMPARATOR)
+                        .build();
                 for (KeyValue kv : kvSets) {
                     writer.append(kv);
                 }
@@ -265,12 +281,18 @@ public class SparkIdLoader implements Serializable {
         sparkConf.set("table_size", Long.toString(mb));
 
         Configuration hbaseConf = ConfigFactory.getHbaseConf();
-        if (mb > 100 && mb < 500) {
-            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 3);
-        } else if (mb > 500 && mb < 1000) {
+        if (mb > 100000) {
+            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 20);
+        } else if (mb > 70000) {
+            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 15);
+        } else if (mb > 50000) {
+            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 10);
+        } else if (mb > 10000) {
+            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 7);
+        } else if (mb > 5000) {
             hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 5);
         } else if (mb > 1000) {
-            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 7);
+            hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 3);
         }
 
 

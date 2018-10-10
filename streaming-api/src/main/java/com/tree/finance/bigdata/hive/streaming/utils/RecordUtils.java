@@ -139,6 +139,11 @@ public class RecordUtils {
         }
         Schema fieldSchema = data.getSchema().getField(FIELD_AFTER).schema().getField(fieldName).schema();
         Object value = ((GenericData.Record)data.get(FIELD_AFTER)).get(fieldName);
+
+        if (null == value) {
+            return 0L;
+        }
+
         if (fieldSchema.getType().equals(Schema.Type.UNION)) {
             fieldSchema = fieldSchema.getTypes().get(1);
         }

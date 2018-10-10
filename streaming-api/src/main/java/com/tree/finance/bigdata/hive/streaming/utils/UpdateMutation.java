@@ -1,10 +1,8 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
-import com.tree.finance.bigdata.hive.streaming.constants.DynamicConfig;
 import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
 import com.tree.finance.bigdata.task.Operation;
-import com.tree.finance.bigdata.utils.common.StringUtils;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.apache.avro.Schema;
@@ -39,9 +37,15 @@ public class UpdateMutation extends Mutation {
 
     private HiveConf conf;
 
+    private boolean insertNoExist = false;
+
     TreeMap<RecordIdentifier, GenericData.Record> recordIdsortedRecord = new TreeMap<>();
     Object2ObjectOpenHashMap<RecordIdentifier, String> recordIdToBuziId = new Object2ObjectOpenHashMap();
-    Object2LongOpenHashMap<RecordIdentifier> recordToUpdateTime = new Object2LongOpenHashMap<>();
+    Object2LongOpenHashMap<RecordIdentifier> recordIdToUpdateTime = new Object2LongOpenHashMap<>();
+    Object2LongOpenHashMap<String> bizIdToUpdateTime = new Object2LongOpenHashMap<>();
+
+    List<String> businessIds = new ArrayList<>();
+    List<Get> getReqs = new ArrayList<>();
 
     private List<GenericData.Record> toUpdate = new ArrayList<>();
 
@@ -49,115 +53,107 @@ public class UpdateMutation extends Mutation {
         super(db, table, partition, partitions, metastoreUris, hbaseConf);
     }
 
+    public UpdateMutation(String db, String table, String partition, List<String> partitions, String metastoreUris
+            , Configuration hbaseConf, boolean insertNoExist) {
+        super(db, table, partition, partitions, metastoreUris, hbaseConf);
+        this.insertNoExist = insertNoExist;
+    }
 
-    public void lazyUpdate(GenericData.Record record) throws Exception {
+    public void update(GenericData.Record record) throws Exception {
+        GenericData.Record keyRecord = (GenericData.Record) record.get(FIELD_KEY);
+        String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(FIELD_KEY).schema());
+
+        Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, record);
+        if (recordUpdateTime == 0L) {
+            LOG.warn("record update time is null or zero, id: {}", businessId);
+        }
+        //skip the same record of older version in the same transaction
+        if (bizIdToUpdateTime.containsKey(businessId) && bizIdToUpdateTime.get(businessId) >= recordUpdateTime) {
+            return;
+        }
+        getReqs.add(new Get(Bytes.toBytes(businessId)));
+        bizIdToUpdateTime.put(businessId, recordUpdateTime);
+        businessIds.add(businessId);
         toUpdate.add(record);
     }
 
-    private void doUpdate() throws IOException, DataDelayedException {
+    /**
+     * @throws IOException
+     * @throws DataDelayedException
+     */
+    private void sortRecords() throws IOException, DataDelayedException {
+
         if (this.hbaseUtils == null) {
             this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
         }
-        List<Get> getReqs = new ArrayList<>();
-        List<String> businessIds = new ArrayList<>();
-        for (GenericData.Record record : toUpdate) {
-            GenericData.Record keyRecord = (GenericData.Record) record.get(FIELD_KEY);
-            String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(FIELD_KEY).schema());
-            businessIds.add(businessId);
-            getReqs.add(new Get(Bytes.toBytes(businessId)));
+
+        if (toUpdate.isEmpty()) {
+            return;
         }
 
         long start = System.currentTimeMillis();
         Result[] results = hbaseUtils.getAll(getReqs);
         LOG.info("HBase batch get cost: {}ms", System.currentTimeMillis() - start);
-
         if (results.length != getReqs.size()) {
-            throw new DataDelayedException("HBase get no expected result size");
+            LOG.error("HBase batch get expect to return: {}, but actural: {}", getReqs.size(), results.length);
+            throw new DataDelayedException("");
         }
-
+        //check can update , and sort records by recordId
         for (int i = 0; i < results.length; i++) {
-            Result result = results[i];
 
-            if (result.isEmpty()) {
-                throw new DataDelayedException("not recId found for: " + businessIds.get(i));
+            try {
+                Result result = results[i];
+                RecordIdentifier recordIdentifier;
+                long recordUpdateTime = bizIdToUpdateTime.get(businessIds.get(i));
+
+                //when there is no insert record or update record before
+                if (result.isEmpty()) {
+                    if (insertNoExist) {
+                        //skip delete when no record exist in HBase
+                        if (Operation.DELETE.code().equals(toUpdate.get(i).get("op").toString())) {
+                            continue;
+                        } else { //update as insert when no record exist in HBase
+                            recordIdentifier = new RecordIdentifier(transactionId,
+                                    BUCKET_ID, rowId++);
+                            LOG.info("treat {} update record as insert: {}", table, businessIds.get(i));
+                        }
+                    } else {
+                        LOG.warn("no recordId in HBase or get empty value for: {}", businessIds.get(i));
+                        throw new DataDelayedException("");
+                    }
+                } else {
+                    byte[] idBytes = result.getValue(columnFamily, recordIdColIdentifier);
+                    byte[] timeBytes = result.getValue(columnFamily, updateTimeColIdentifier);
+                    //recordId= transactionId_BUCKET_ID _rowId
+                    String recordId = null == idBytes ? null : Bytes.toString(idBytes);
+                    if (null == recordId || recordId.isEmpty()) {
+                        LOG.error("get null or empty recordId， bizId: {}", businessIds.get(i));
+                        throw new RuntimeException("get null or empty recordId");
+                    }
+                    Long hbaseTime = null == timeBytes ? null : Bytes.toLong(timeBytes);
+                    if (null != hbaseTime && recordUpdateTime <= hbaseTime) {
+                        continue;
+                    }
+                    String[] recordIds = RecordUtils.splitRecordId(recordId, '_');
+                    recordIdentifier = new RecordIdentifier(Integer.valueOf(recordIds[0]),
+                            Integer.valueOf(recordIds[1]), Integer.valueOf(recordIds[2]));
+                }
+
+                recordIdsortedRecord.put(recordIdentifier, toUpdate.get(i));
+                //used in AvroObjectInspector
+                bizToRecIdMap.put(businessIds.get(i), recordIdentifier);
+                recordIdToBuziId.put(recordIdentifier, businessIds.get(i));
+                recordIdToUpdateTime.put(recordIdentifier, recordUpdateTime);
+            } catch (Exception e) {
+                LOG.error("failed to process record: {}", businessIds.get(i));
+                throw new RuntimeException(e);
             }
 
-            byte[] idBytes = result.getValue(columnFamily, recordIdColIdentifier);
-            byte[] timeBytes = result.getValue(columnFamily, updateTimeColIdentifier);
-
-            //recordId= transactionId_BUCKET_ID _rowId
-            String recordId = null == idBytes ? null : Bytes.toString(idBytes);
-
-            if (null == recordId) {
-                LOG.warn("no recordId in HBase: {}", businessIds.get(i));
-                throw new DataDelayedException("");
-            }
-
-            Long hbaseTime = null == timeBytes ? null : Bytes.toLong(timeBytes);
-
-            Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, toUpdate.get(i));
-
-            if (null != hbaseTime && recordUpdateTime <= hbaseTime) {
-                continue;
-            }
-
-            if (recordToUpdateTime.containsKey(recordId) && recordToUpdateTime.get(recordId) > recordUpdateTime) {
-                return;
-            }
-
-            String[] recordIds = RecordUtils.splitRecordId(recordId, '_');
-            RecordIdentifier recordIdentifier = new RecordIdentifier(Integer.valueOf(recordIds[0]),
-                    Integer.valueOf(recordIds[1]), Integer.valueOf(recordIds[2]));
-            recordIdsortedRecord.put(recordIdentifier, toUpdate.get(i));
-
-            bizToRecIdMap.put(businessIds.get(i), recordIdentifier);
-            recordIdToBuziId.put(recordIdentifier, businessIds.get(i));
-            recordToUpdateTime.put(recordIdentifier, recordUpdateTime);
         }
     }
 
-    /*private void update(GenericData.Record record, boolean ignoreNotExist) throws Exception {
-        if (this.hbaseUtils == null) {
-            this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
-        }
-        GenericData.Record keyRecord = (GenericData.Record) record.get(FIELD_KEY);
-
-        String businessId = GenericRowIdUtils.assembleBuizId(keyRecord, recordSchema.getField(FIELD_KEY).schema());
-
-        Object[] idAndTime = hbaseUtils.getAsBytes(businessId, columnFamily, recordIdColIdentifier, updateTimeColIdentifier);
-
-        //recordId= transactionId_BUCKET_ID _rowId
-        String recordId = null == idAndTime[0] ? null : Bytes.toString((byte[]) idAndTime[0]);
-        Long hbaseTime = null == idAndTime[1] ? null : Bytes.toLong((byte[]) idAndTime[1]);
-
-        if (!ignoreNotExist) {
-            if (StringUtils.isEmpty(recordId)) {
-                LOG.warn("no recordId found for: {}, data maybe delayed", businessId);
-                throw new DataDelayedException("no recordId found for " + businessId);
-            }
-        }
-
-        Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, record);
-
-        if (null != hbaseTime && recordUpdateTime <= hbaseTime) {
-            return;
-        }
-
-        if (recordToUpdateTime.containsKey(recordId) && recordToUpdateTime.get(recordId) > recordUpdateTime) {
-            return;
-        }
-
-        String[] recordIds = RecordUtils.splitRecordId(recordId, '_');
-        RecordIdentifier recordIdentifier = new RecordIdentifier(Integer.valueOf(recordIds[0]),
-                Integer.valueOf(recordIds[1]), Integer.valueOf(recordIds[2]));
-        recordIdsortedRecord.put(recordIdentifier, record);
-
-        recordIdToBuziId.put(recordIdentifier, businessId);
-        recordToUpdateTime.put(recordIdentifier, recordUpdateTime);
-    }*/
-
     @Override
-    public void beginStreamTransaction(Schema schema, HiveConf hiveConf) throws Exception{
+    public void beginStreamTransaction(Schema schema, HiveConf hiveConf) throws Exception {
         this.recordSchema = schema;
         this.checkExist = true;
         this.conf = hiveConf;
@@ -165,22 +161,23 @@ public class UpdateMutation extends Mutation {
     }
 
     @Override
-    public void commitTransaction() throws Exception {
+    public long commitTransaction() throws Exception {
 
         if (toUpdate.isEmpty()) {
             super.commitTransaction();
-            return;
+            return 0l;
         }
 
-        doUpdate();
+        sortRecords();
 
         if (recordIdsortedRecord.isEmpty()) {
             super.commitTransaction();
-            return;
+            return mutateRecords;
         }
 
         long writeStart = System.currentTimeMillis();
 
+        List<Put> puts = new ArrayList<>();
         for (Map.Entry<RecordIdentifier, GenericData.Record> entry : recordIdsortedRecord.entrySet()) {
             GenericData.Record record = entry.getValue();
             if (record == null) {
@@ -189,21 +186,28 @@ public class UpdateMutation extends Mutation {
             if (Operation.DELETE.code().equals(record.get("op").toString())) {
                 mutateCoordinator.delete(partitions, record);
             } else {
-                mutateCoordinator.update(partitions, record);
+                //if recordId's transactionId the same as current transaction, means we treat update as insert
+                if (insertNoExist && entry.getKey().getTransactionId() == transactionId) {
+                    mutateCoordinator.insert(partitions, record);
+                } else {
+                    mutateCoordinator.update(partitions, record);
+                }
             }
 
-            Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(updateCol, record);
-            if (null == latestUpdateTime) {
-                this.latestUpdateTime = recordUpdateTime;
-            } else if (this.latestUpdateTime < recordUpdateTime) {
+            Long recordUpdateTime = recordIdToUpdateTime.get(entry.getKey());
+            if (null == latestUpdateTime || this.latestUpdateTime < recordUpdateTime) {
                 this.latestUpdateTime = recordUpdateTime;
             }
 
             Put put = new Put(Bytes.toBytes(recordIdToBuziId.get(entry.getKey())));
-            if (null != recordUpdateTime) {
-                put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(recordUpdateTime));
+
+            //need to update recordId, for it not exist before
+            if (insertNoExist && transactionId == entry.getKey().getTransactionId()) {
+                String recId = entry.getKey().getTransactionId() + "_" + BUCKET_ID + "_" + entry.getKey().getRowId();
+                put.add(columnFamily, recordIdColIdentifier, Bytes.toBytes(recId));
             }
-            hbaseUtils.insertAsync(put);
+            put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(recordUpdateTime));
+            puts.add(put);
         }
 
         LOG.info("update write finished, cost: {}ms", System.currentTimeMillis() - writeStart);
@@ -211,5 +215,11 @@ public class UpdateMutation extends Mutation {
         long commitStart = System.currentTimeMillis();
         super.commitTransaction();
         LOG.info("commit success cost: {}", System.currentTimeMillis() - commitStart);
+
+        long putStart = System.currentTimeMillis();
+        hbaseUtils.batchPut(puts);
+        LOG.info("batch put success cost: {}", System.currentTimeMillis() - putStart);
+
+        return mutateRecords;
     }
 }

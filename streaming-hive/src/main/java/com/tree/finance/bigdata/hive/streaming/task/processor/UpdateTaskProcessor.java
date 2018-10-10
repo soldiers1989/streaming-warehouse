@@ -103,7 +103,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
                 while (reader.hasNext()) {
                     GenericData.Record record = reader.next();
-                    updateMutation.lazyUpdate(record);
+                    updateMutation.update(record);
                     records++;
                 }
             }
@@ -186,7 +186,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                     updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
                     while (reader.hasNext()) {
                         GenericData.Record record = reader.next();
-                        updateMutation.lazyUpdate(record);
+                        updateMutation.update(record);
                         records++;
                     }
                 }

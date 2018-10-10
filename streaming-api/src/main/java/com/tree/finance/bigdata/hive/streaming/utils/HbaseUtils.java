@@ -1,19 +1,18 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
-import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.utils.common.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.regionserver.ConstantSizeRegionSplitPolicy;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.eclipse.jetty.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_INSERT_BATCH_SIZE;
@@ -30,8 +29,6 @@ public class HbaseUtils {
     static Connection connection;
     private Integer batchSize;
 
-    private List<Put> buffer;
-
     private Table htable;
 
     public static String PRE_SPLIT_REGIONS = "table.pre.split.regions";
@@ -39,7 +36,6 @@ public class HbaseUtils {
     private static final ConcurrentHashSet<String> CHECKED_EXIST_TABLE = new ConcurrentHashSet<>();
 
     private HbaseUtils(String tableName, Configuration config) throws IOException {
-        this.buffer = new ArrayList<>();
         this.batchSize = config.getInt(KEY_HBASE_INSERT_BATCH_SIZE, 500);
         this.htable = connection.getTable(TableName.valueOf(tableName));
     }
@@ -147,6 +143,10 @@ public class HbaseUtils {
     public static void createTale(String tableName, String familyStr, int regions) throws IOException {
         HTableDescriptor table = new HTableDescriptor(TableName.valueOf(tableName));
         table.setCompactionEnabled(true);
+        //region split at 10GB
+        long maxFileSize = 10 * 1024 * 1024 * 1024l;
+        table.setMaxFileSize(maxFileSize);
+        table.setRegionSplitPolicyClassName(ConstantSizeRegionSplitPolicy.class.getName());
         HColumnDescriptor family = new HColumnDescriptor(Bytes.toBytes(familyStr));
         table.addFamily(family);
         Admin admin = connection.getAdmin();
@@ -166,26 +166,19 @@ public class HbaseUtils {
         admin.close();
     }
 
-    public void insertAsync(Put put) throws IOException {
-        /*if (buffer.size() >= batchSize) {
-            htable.put(buffer);
-            buffer.clear();
-        }*/
-        buffer.add(put);
-    }
-
-    public void put(Put put) throws IOException {
+    public void syncPut(Put put) throws IOException {
         htable.put(put);
     }
 
     public void close() throws IOException {
-        if (!buffer.isEmpty()) {
-            htable.put(buffer);
-        }
         htable.close();
     }
 
     public Table getHtable() {
         return htable;
+    }
+
+    public void batchPut(List<Put> puts) throws Exception{
+        htable.put(puts);
     }
 }

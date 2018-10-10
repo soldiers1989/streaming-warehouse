@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.tools.hbase;
+package com.tree.finance.bigdata.hive.streaming.tools.recId.loader;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -57,17 +57,17 @@ public class HFileWriter extends RecordWriter<ImmutableBytesWritable, KeyValue>{
         this.rollRequested = false;
         this.fs = FileSystem.get(conf);
         this.outputPath = output;
-        this.maxsize = conf.getLong("hbase.hregion.max.filesize", 10737418240L);
+        this.maxsize = conf.getLong("recId.hregion.max.filesize", 10737418240L);
 
         this.conf = conf;
         String defaultCompressionStr = conf.get("hfile.compression", Compression.Algorithm.NONE.getName());
         this.defaultCompression = AbstractHFileWriter.compressionByName(defaultCompressionStr);
 
-        this.compactionExclude = conf.getBoolean("hbase.mapreduce.hfileoutputformat.compaction.exclude", false);
+        this.compactionExclude = conf.getBoolean("recId.mapreduce.hfileoutputformat.compaction.exclude", false);
         this.compressionMap = createFamilyCompressionMap(conf);
         this.bloomTypeMap = createFamilyBloomTypeMap(conf);
         this.blockSizeMap = createFamilyBlockSizeMap(conf);
-        String dataBlockEncodingStr = conf.get("hbase.mapreduce.hfileoutputformat.datablock.encoding");
+        String dataBlockEncodingStr = conf.get("recId.mapreduce.hfileoutputformat.datablock.encoding");
         this.datablockEncodingMap = createFamilyDataBlockEncodingMap(conf);
         if (dataBlockEncodingStr != null) {
             overriddenEncoding = DataBlockEncoding.valueOf(dataBlockEncodingStr);
@@ -162,7 +162,7 @@ public class HFileWriter extends RecordWriter<ImmutableBytesWritable, KeyValue>{
 
     }
     static Map<byte[], Compression.Algorithm> createFamilyCompressionMap(Configuration conf) {
-        Map<byte[], String> stringMap = createFamilyConfValueMap(conf, "hbase.hfileoutputformat.families.compression");
+        Map<byte[], String> stringMap = createFamilyConfValueMap(conf, "recId.hfileoutputformat.families.compression");
         Map<byte[], Compression.Algorithm> compressionMap = new TreeMap(Bytes.BYTES_COMPARATOR);
         Iterator iterator = stringMap.entrySet().iterator();
 
@@ -195,7 +195,7 @@ public class HFileWriter extends RecordWriter<ImmutableBytesWritable, KeyValue>{
     }
 
     static Map<byte[], BloomType> createFamilyBloomTypeMap(Configuration conf) {
-        Map<byte[], String> stringMap = createFamilyConfValueMap(conf, "hbase.hfileoutputformat.families.bloomtype");
+        Map<byte[], String> stringMap = createFamilyConfValueMap(conf, "recId.hfileoutputformat.families.bloomtype");
         Map<byte[], BloomType> bloomTypeMap = new TreeMap(Bytes.BYTES_COMPARATOR);
         Iterator i$ = stringMap.entrySet().iterator();
 
@@ -208,7 +208,7 @@ public class HFileWriter extends RecordWriter<ImmutableBytesWritable, KeyValue>{
         return bloomTypeMap;
     }
     static Map<byte[], Integer> createFamilyBlockSizeMap(Configuration conf) {
-        Map<byte[], String> stringMap = createFamilyConfValueMap(conf, "hbase.mapreduce.hfileoutputformat.blocksize");
+        Map<byte[], String> stringMap = createFamilyConfValueMap(conf, "recId.mapreduce.hfileoutputformat.blocksize");
         Map<byte[], Integer> blockSizeMap = new TreeMap(Bytes.BYTES_COMPARATOR);
         Iterator i$ = stringMap.entrySet().iterator();
 
@@ -220,7 +220,7 @@ public class HFileWriter extends RecordWriter<ImmutableBytesWritable, KeyValue>{
         return blockSizeMap;
     }
     static Map<byte[], DataBlockEncoding> createFamilyDataBlockEncodingMap(Configuration conf) {
-        Map<byte[], String> stringMap = createFamilyConfValueMap(conf, "hbase.mapreduce.hfileoutputformat.families.datablock.encoding");
+        Map<byte[], String> stringMap = createFamilyConfValueMap(conf, "recId.mapreduce.hfileoutputformat.families.datablock.encoding");
         Map<byte[], DataBlockEncoding> encoderMap = new TreeMap(Bytes.BYTES_COMPARATOR);
         Iterator iterator = stringMap.entrySet().iterator();
 

@@ -38,7 +38,7 @@ public class CheckTimeConfigTools {
         }
         Put put = new Put(rowKey.getBytes());
         put.addColumn(family, checkUpdateTimeCol, Bytes.toBytes(checkTime));
-        hbaseUtils.put(put);
+        hbaseUtils.syncPut(put);
     }
 
     public static void main(String[] args) throws Exception {

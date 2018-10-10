@@ -26,7 +26,7 @@ if [ ${op} == "createHiveTbl" ] ; then
 
 elif [ ${op} == "loadRecId" ] ; then
   export HADOOP_USER_NAME="hbase"
-  main_class="com.tree.finance.bigdata.hive.streaming.tools.hbase.RecordIdLoader"
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.recId.loader.RecordIdLoader"
   out_log="load-id-"${2}".out"
 
 elif [ ${op} == "setCheckTime" ] ; then

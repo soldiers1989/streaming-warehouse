@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.tools.hbase;
+package com.tree.finance.bigdata.hive.streaming.tools.recId.loader;
 
 import com.google.common.collect.Lists;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
@@ -14,7 +14,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.HFileContext;
 import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
@@ -54,6 +53,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class BulkIdLoader {
 
+    static final String SPACE_REPLACEMENT = "\\|";
+
     private ExecutorService executor;
     private String db;
     private String table;
@@ -77,10 +78,13 @@ public class BulkIdLoader {
 
     private AtomicInteger finishedTasks = new AtomicInteger(0);
 
-    public BulkIdLoader(String db, String table, int cores) {
+    private String parFilter;
+
+    public BulkIdLoader(String db, String table, String parFilter, int cores) {
         this.cores = cores;
         this.db = db;
         this.table = table;
+        this.parFilter = parFilter.replaceAll(SPACE_REPLACEMENT, " ");
         this.columnFamily = Bytes.toBytes(ConfigFactory.getHbaseColumnFamily());
         this.recordIdentifier = Bytes.toBytes(ConfigFactory.getHbaseRecordIdColumnIdentifier());
         this.updateTimeIdentifier = Bytes.toBytes(ConfigFactory.getHbaseUpdateTimeColumnIdentifier());
@@ -93,7 +97,13 @@ public class BulkIdLoader {
         hiveConf.set("hive.metastore.uris", ConfigHolder.getConfig().getMetastoreUris());
         IMetaStoreClient iMetaStoreClient = new HiveMetaStoreClient(hiveConf);
         prepare(iMetaStoreClient);
-        PartitionSpecProxy proxy = iMetaStoreClient.listPartitionSpecs(db, table, Integer.MAX_VALUE);
+        PartitionSpecProxy proxy;
+        if (StringUtils.isEmpty(parFilter)) {
+            proxy = iMetaStoreClient.listPartitionSpecs(db, table, Integer.MAX_VALUE);
+        } else {
+            proxy = iMetaStoreClient.listPartitionSpecsByFilter(db, table, parFilter, Integer.MAX_VALUE);
+        }
+
         Iterator<Partition> iterator = proxy.getPartitionIterator();
 
         FileSystem fs = FileSystem.get(new Configuration());
@@ -225,7 +235,7 @@ public class BulkIdLoader {
 
                     if (writer == null) {
                         FileSystem fs = FileSystem.get(new Configuration());
-                        outPut = new Path("/tmp/streaming-hbase/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
+                        outPut = new Path("/tmp/streaming-recId/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
 
                         Configuration hbaseConf = ConfigFactory.getHbaseConf();
                         if (mb > 100 && mb < 500) {

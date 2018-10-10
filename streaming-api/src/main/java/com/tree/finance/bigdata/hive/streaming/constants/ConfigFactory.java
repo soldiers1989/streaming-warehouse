@@ -43,7 +43,7 @@ public class ConfigFactory {
 
     private static String getHbaseZnodeParent() {
         return properties.contains(Constants.KEY_HBASE_ZNODE_PARENT) ?
-                properties.getProperty(Constants.KEY_HBASE_ZNODE_PARENT) : "/hbase";
+                properties.getProperty(Constants.KEY_HBASE_ZNODE_PARENT) : "/recId";
     }
 
     public static Configuration getHbaseConf() {
