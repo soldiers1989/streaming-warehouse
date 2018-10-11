@@ -1,13 +1,11 @@
 package com.tree.finance.bigdata.hive.streaming.hbase;
 
+import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.utils.HbaseUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
@@ -26,14 +24,8 @@ public class TestHbaseUtil {
 
     Configuration config = HBaseConfiguration.create();
     Connection connection;
-    String zkStr = "cdh4:2181";
+    String zkStr = "cloudera2:2181";
 
-    @Before
-    public void before() throws Exception {
-        config.set("hbase.zookeeper.quorum", zkStr);
-        config.set("zookeeper.znode.parent", "/recId");
-        connection = ConnectionFactory.createConnection(config);
-    }
 
     @Test
     public void testCreateTable() throws Exception {
@@ -41,8 +33,18 @@ public class TestHbaseUtil {
     }
 
     @Test
-    public void testBatchGet() {
+    public void testBatchGet()throws Exception {
+        HbaseUtils hbaseUtils = HbaseUtils.getTableInstance("thirdparty2.shcis_file_upload_log_id", ConfigFactory.getHbaseConf());
+        List<Get> gets = new ArrayList<>();
+        gets.add(new Get(Bytes.toBytes("2222222")));
+        gets.add(new Get(Bytes.toBytes("22222222333")));
+        Result resuts[] = hbaseUtils.getAll(gets);
+        for (Result result : resuts) {
+            if (result.isEmpty()) {
+                System.out.println(Bytes.toString(result.value()));
+            }
 
+        }
     }
 
     @Test

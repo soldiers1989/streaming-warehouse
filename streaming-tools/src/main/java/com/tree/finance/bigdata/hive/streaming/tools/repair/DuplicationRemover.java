@@ -1,11 +1,10 @@
-package com.tree.finance.bigdata.hive.streaming.tools.data;
+package com.tree.finance.bigdata.hive.streaming.tools.repair;
 
 import com.tree.finance.bigdata.hive.streaming.tools.config.ConfigHolder;
 import com.tree.finance.bigdata.utils.common.CollectionUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -56,7 +56,7 @@ public class InsertMutation extends Mutation {
             LOG.warn("record update time is null or zero, bizId: {}", businessId);
         }
 
-        //record latest update_time of streaming data
+        //record latest update_time of streaming repair
         if (latestUpdateTime == null || latestUpdateTime < recordUpdateTime) {
             this.latestUpdateTime = recordUpdateTime;
         }
@@ -64,7 +64,7 @@ public class InsertMutation extends Mutation {
         if (checkExist) {   //add bizId, Get request to cache, avoid recompution
             this.toInsert.add(record);
             this.gets.add(new Get(Bytes.toBytes(businessId)));
-            //if check record in HBase, some record will not be inserted, so rowId can't generate now, add rowId to put later
+            //if check record in HBase, some record will not be inserted, so recId can't generate now, add rowId to put later
             Put put = new Put(Bytes.toBytes(businessId));
             put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(recordUpdateTime));
             puts.add(put);
@@ -125,7 +125,7 @@ public class InsertMutation extends Mutation {
         GenericData.Record keyRecord = (GenericData.Record) record.get(SchemaConstants.FIELD_KEY);
         String recordId = transactionId + "_" + BUCKET_ID + "_" + (rowId++);
 
-        //record latest update_time of streaming data
+        //record latest update_time of streaming repair
         if (latestUpdateTime == null) {
             this.latestUpdateTime = recordUpdateTime;
         } else {

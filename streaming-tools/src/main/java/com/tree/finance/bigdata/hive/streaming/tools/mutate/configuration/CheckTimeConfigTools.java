@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.tools.cli;
+package com.tree.finance.bigdata.hive.streaming.tools.mutate.configuration;
 
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.tools.config.ConfigHolder;

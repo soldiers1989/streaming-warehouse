@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-operation=("createHiveTbl" "setCheckTime" "loadRecId")
+operation=("createHiveTbl" "setCheckTime" "loadRecId" "catAvro" "catRecId")
 
 if [ $# -eq 0 ]
 then
@@ -21,7 +21,7 @@ out_log=""
 
 if [ ${op} == "createHiveTbl" ] ; then
   export HADOOP_USER_NAME="hive"
-  main_class="com.tree.finance.bigdata.hive.streaming.tools.cli.CreateTools"
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.hive.CreateTools"
   out_log="create-hive-tbl.out"
 
 elif [ ${op} == "loadRecId" ] ; then
@@ -30,8 +30,16 @@ elif [ ${op} == "loadRecId" ] ; then
   out_log="load-id-"${2}".out"
 
 elif [ ${op} == "setCheckTime" ] ; then
-  main_class="com.tree.finance.bigdata.hive.streaming.tools.cli.CheckTimeConfigTools"
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.mutate.configuration.CheckTimeConfigTools"
   out_log="set-check-time.out"
+
+elif [ ${op} == "catAvro" ] ; then
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.avro.AvroTools"
+  out_log="cat-avro.out"
+
+elif [ ${op} == "catRecId" ] ; then
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.recId.insight.InsightTools"
+  out_log="cat-RecId.out"
 
 else
   exit
@@ -57,7 +65,7 @@ if [ ! -e ${log_dir} ]; then
   mkdir -p ${log_dir}
 fi
 
-cmd="java ${JVM_OPTS} -Dapp.config.file=$conf_dir/program.properties -Dlog_file=${log_file} -Dlog_dir=${log_dir} -classpath $CLASS_PATH  ${main_class} $@"
+cmd="java ${JVM_OPTS} -Dapp.config.file=$conf_dir/program.properties -Dlog_file=${log_file} -Dlog_dir=${log_dir} -classpath $CLASS_PATH  ${main_class}"
 
-exec ${cmd}
-#nohup ${cmd} 1>&2> ${log_dir}/${out_log} &
+exec ${cmd} "$@"
+#nohup ${cmd} ""$@" 1>&2> ${log_dir}/${out_log} &

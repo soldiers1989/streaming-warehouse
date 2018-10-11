@@ -108,10 +108,9 @@ public abstract class Mutation {
 
         if (null != latestUpdateTime && dynamicConfig != null) {
             try {
-                dynamicConfig.setStreamPartitionUpdateTime(db, table, partition, Long.toString(latestUpdateTime));
-                dynamicConfig.setStreamTableUpdateTime(db, table, Long.toString(latestUpdateTime));
+                dynamicConfig.refreshStreamTime(db, table, partition, Long.toString(latestUpdateTime));
             } catch (Throwable e) {
-                LOG.warn("error update fix update_time table, may cause program efficiency problem when fixing data.", e);
+                LOG.warn("error update fix update_time table, may cause program efficiency problem when fixing repair.", e);
             }
         }
         closeDynamicConfigQuietely();

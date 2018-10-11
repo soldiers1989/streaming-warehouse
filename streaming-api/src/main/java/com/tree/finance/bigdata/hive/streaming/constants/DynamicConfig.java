@@ -5,6 +5,8 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author Zhengsj
@@ -27,7 +29,7 @@ public class DynamicConfig {
     }
 
     //update stream_update_time
-    public void setStreamPartitionUpdateTime (String db, String table, String partitionName, String updateTime) throws IOException {
+    /*public void setStreamPartitionUpdateTime (String db, String table, String partitionName, String updateTime) throws IOException {
         String rowKey = assembleRowKey(db, table, partitionName);
         Put put = new Put(Bytes.toBytes(rowKey));
         put.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(updateTime));
@@ -38,6 +40,23 @@ public class DynamicConfig {
         Put put = new Put(Bytes.toBytes(rowKey));
         put.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(latestUpdateTime));
         hbaseUtils.syncPut(put);
+    }*/
+
+    //update stream update_time in hbase, include table update_time, partition update_time
+    public void refreshStreamTime (String db, String table, String partitionName, String updateTime) throws Exception {
+        List<Put> puts = new ArrayList<>();
+
+        String parKey = assembleRowKey(db, table, partitionName);
+        Put parPut = new Put(Bytes.toBytes(parKey));
+        parPut.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(updateTime));
+        puts.add(parPut);
+
+        String tblKey = db + "." + table;
+        Put tblPut = new Put(Bytes.toBytes(tblKey));
+        tblPut.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(updateTime));
+        puts.add(tblPut);
+
+        hbaseUtils.batchPut(puts);
     }
 
 

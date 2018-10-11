@@ -18,10 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_RECORDID_TBL_SUFFIX;
 import static com.tree.finance.bigdata.schema.SchemaConstants.FIELD_KEY;
@@ -39,15 +36,11 @@ public class UpdateMutation extends Mutation {
 
     private boolean insertNoExist = false;
 
-    TreeMap<RecordIdentifier, GenericData.Record> recordIdsortedRecord = new TreeMap<>();
+    TreeSet<RecordIdentifier> recordIdsorted = new TreeSet<>();
     Object2ObjectOpenHashMap<RecordIdentifier, String> recordIdToBuziId = new Object2ObjectOpenHashMap();
-    Object2LongOpenHashMap<RecordIdentifier> recordIdToUpdateTime = new Object2LongOpenHashMap<>();
+
     Object2LongOpenHashMap<String> bizIdToUpdateTime = new Object2LongOpenHashMap<>();
-
-    List<String> businessIds = new ArrayList<>();
-    List<Get> getReqs = new ArrayList<>();
-
-    private List<GenericData.Record> toUpdate = new ArrayList<>();
+    Object2ObjectOpenHashMap<String, GenericData.Record> bizIdToGeneric = new Object2ObjectOpenHashMap();
 
     public UpdateMutation(String db, String table, String partition, List<String> partitions, String metastoreUris, Configuration hbaseConf) {
         super(db, table, partition, partitions, metastoreUris, hbaseConf);
@@ -70,11 +63,10 @@ public class UpdateMutation extends Mutation {
         //skip the same record of older version in the same transaction
         if (bizIdToUpdateTime.containsKey(businessId) && bizIdToUpdateTime.get(businessId) >= recordUpdateTime) {
             return;
+        } else { //newer or not exist record
+            bizIdToUpdateTime.put(businessId, recordUpdateTime);
+            bizIdToGeneric.put(businessId, record);
         }
-        getReqs.add(new Get(Bytes.toBytes(businessId)));
-        bizIdToUpdateTime.put(businessId, recordUpdateTime);
-        businessIds.add(businessId);
-        toUpdate.add(record);
     }
 
     /**
@@ -87,8 +79,12 @@ public class UpdateMutation extends Mutation {
             this.hbaseUtils = HbaseUtils.getTableInstance(db + "." + table + KEY_HBASE_RECORDID_TBL_SUFFIX, hbaseConf);
         }
 
-        if (toUpdate.isEmpty()) {
-            return;
+        //keep HBase gets and buzId in coresponding order, for Result will not return requested rowkey when result is empty
+        List<Get> getReqs = new ArrayList<>();
+        List<String> bizIds = new ArrayList<>();
+        for (String key : bizIdToGeneric.keySet()){
+            getReqs.add(new Get(Bytes.toBytes(key)));
+            bizIds.add(key);
         }
 
         long start = System.currentTimeMillis();
@@ -98,27 +94,29 @@ public class UpdateMutation extends Mutation {
             LOG.error("HBase batch get expect to return: {}, but actural: {}", getReqs.size(), results.length);
             throw new DataDelayedException("");
         }
+
         //check can update , and sort records by recordId
         for (int i = 0; i < results.length; i++) {
-
+            //can't get bizId from results[i].row(), for it will be null, when hbase not exist this recordId
+            String bizId = bizIds.get(i);
             try {
                 Result result = results[i];
                 RecordIdentifier recordIdentifier;
-                long recordUpdateTime = bizIdToUpdateTime.get(businessIds.get(i));
+                long recordUpdateTime = bizIdToUpdateTime.get(bizId);
 
                 //when there is no insert record or update record before
                 if (result.isEmpty()) {
                     if (insertNoExist) {
                         //skip delete when no record exist in HBase
-                        if (Operation.DELETE.code().equals(toUpdate.get(i).get("op").toString())) {
+                        if (Operation.DELETE.code().equals(bizIdToGeneric.get(bizId).get("op").toString())) {
                             continue;
                         } else { //update as insert when no record exist in HBase
                             recordIdentifier = new RecordIdentifier(transactionId,
                                     BUCKET_ID, rowId++);
-                            LOG.info("treat {} update record as insert: {}", table, businessIds.get(i));
+                            LOG.info("treat {} update record as insert: {}", table, bizId);
                         }
                     } else {
-                        LOG.warn("no recordId in HBase or get empty value for: {}", businessIds.get(i));
+                        LOG.warn("no recordId in HBase or get empty value for: {}", bizId);
                         throw new DataDelayedException("");
                     }
                 } else {
@@ -127,7 +125,7 @@ public class UpdateMutation extends Mutation {
                     //recordId= transactionId_BUCKET_ID _rowId
                     String recordId = null == idBytes ? null : Bytes.toString(idBytes);
                     if (null == recordId || recordId.isEmpty()) {
-                        LOG.error("get null or empty recordId， bizId: {}", businessIds.get(i));
+                        LOG.error("get null or empty recordId， bizId: {}", bizId);
                         throw new RuntimeException("get null or empty recordId");
                     }
                     Long hbaseTime = null == timeBytes ? null : Bytes.toLong(timeBytes);
@@ -139,13 +137,12 @@ public class UpdateMutation extends Mutation {
                             Integer.valueOf(recordIds[1]), Integer.valueOf(recordIds[2]));
                 }
 
-                recordIdsortedRecord.put(recordIdentifier, toUpdate.get(i));
+                recordIdsorted.add(recordIdentifier);
                 //used in AvroObjectInspector
-                bizToRecIdMap.put(businessIds.get(i), recordIdentifier);
-                recordIdToBuziId.put(recordIdentifier, businessIds.get(i));
-                recordIdToUpdateTime.put(recordIdentifier, recordUpdateTime);
+                bizToRecIdMap.put(bizId, recordIdentifier);
+                recordIdToBuziId.put(recordIdentifier, bizId);
             } catch (Exception e) {
-                LOG.error("failed to process record: {}", businessIds.get(i));
+                LOG.error("failed to process record: {}", bizId);
                 throw new RuntimeException(e);
             }
 
@@ -163,14 +160,14 @@ public class UpdateMutation extends Mutation {
     @Override
     public long commitTransaction() throws Exception {
 
-        if (toUpdate.isEmpty()) {
+        if (bizIdToGeneric.isEmpty()) {
             super.commitTransaction();
             return 0l;
         }
 
         sortRecords();
 
-        if (recordIdsortedRecord.isEmpty()) {
+        if (recordIdsorted.isEmpty()) {
             super.commitTransaction();
             return mutateRecords;
         }
@@ -178,32 +175,33 @@ public class UpdateMutation extends Mutation {
         long writeStart = System.currentTimeMillis();
 
         List<Put> puts = new ArrayList<>();
-        for (Map.Entry<RecordIdentifier, GenericData.Record> entry : recordIdsortedRecord.entrySet()) {
-            GenericData.Record record = entry.getValue();
+        for (RecordIdentifier recordIdentifier : recordIdsorted) {
+            GenericData.Record record = bizIdToGeneric.get(recordIdToBuziId.get(recordIdentifier));
             if (record == null) {
                 continue;
             }
-            if (Operation.DELETE.code().equals(record.get("op").toString())) {
+            if (Operation.DELETE.code().equals(record.get("op").toString())) {  //have filtered non exist delete before
                 mutateCoordinator.delete(partitions, record);
             } else {
                 //if recordId's transactionId the same as current transaction, means we treat update as insert
-                if (insertNoExist && entry.getKey().getTransactionId() == transactionId) {
+                if (insertNoExist && recordIdentifier.getTransactionId() == transactionId) {
                     mutateCoordinator.insert(partitions, record);
                 } else {
                     mutateCoordinator.update(partitions, record);
                 }
             }
 
-            Long recordUpdateTime = recordIdToUpdateTime.get(entry.getKey());
+            Long recordUpdateTime = bizIdToUpdateTime.get(recordIdToBuziId.get(recordIdentifier));
+
             if (null == latestUpdateTime || this.latestUpdateTime < recordUpdateTime) {
                 this.latestUpdateTime = recordUpdateTime;
             }
 
-            Put put = new Put(Bytes.toBytes(recordIdToBuziId.get(entry.getKey())));
+            Put put = new Put(Bytes.toBytes(recordIdToBuziId.get(recordIdentifier)));
 
             //need to update recordId, for it not exist before
-            if (insertNoExist && transactionId == entry.getKey().getTransactionId()) {
-                String recId = entry.getKey().getTransactionId() + "_" + BUCKET_ID + "_" + entry.getKey().getRowId();
+            if (insertNoExist && transactionId == recordIdentifier.getTransactionId()) {
+                String recId = recordIdentifier.getTransactionId() + "_" + BUCKET_ID + "_" + recordIdentifier.getRowId();
                 put.add(columnFamily, recordIdColIdentifier, Bytes.toBytes(recId));
             }
             put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(recordUpdateTime));
@@ -218,7 +216,7 @@ public class UpdateMutation extends Mutation {
 
         long putStart = System.currentTimeMillis();
         hbaseUtils.batchPut(puts);
-        LOG.info("batch put success cost: {}", System.currentTimeMillis() - putStart);
+        LOG.info("batch put ids success cost: {}", System.currentTimeMillis() - putStart);
 
         return mutateRecords;
     }

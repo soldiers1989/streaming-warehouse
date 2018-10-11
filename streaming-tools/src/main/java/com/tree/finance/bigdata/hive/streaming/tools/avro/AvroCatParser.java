@@ -1,4 +1,4 @@
-package com.tree.finance.bigdata.hive.streaming.tools.cli;
+package com.tree.finance.bigdata.hive.streaming.tools.avro;
 
 import org.apache.commons.cli.*;
 
@@ -28,11 +28,12 @@ public class AvroCatParser {
                 .desc("help desc").build();
 
         options.addOption(pathOption);
+        options.addOption(help);
 
         return options;
     }
 
-    private CommandLine parse() throws ParseException{
+    private CommandLine parse() throws ParseException {
         CommandLineParser parser = new DefaultParser();
         return parser.parse(buildOptions(), args);
     }
@@ -47,5 +48,9 @@ public class AvroCatParser {
         formatter.printUsage(writer, 500, "cat avro directory or files", buildOptions());
         writer.flush();
         writer.close();
+    }
+
+    public String[] getPath() {
+        return commandLine.getOptionValues(OPTION_NAME_PATH);
     }
 }

@@ -46,7 +46,7 @@ public class TestSort {
             "        \"type\" : [ \"null\", \"string\" ],\n" +
             "        \"default\" : null\n" +
             "      }, {\n" +
-            "        \"name\" : \"data\",\n" +
+            "        \"name\" : \"repair\",\n" +
             "        \"type\" : [ \"null\", \"string\" ],\n" +
             "        \"default\" : null\n" +
             "      }, {\n" +

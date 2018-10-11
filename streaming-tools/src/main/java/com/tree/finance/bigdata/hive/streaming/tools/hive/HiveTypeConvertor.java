@@ -20,7 +20,7 @@ public class HiveTypeConvertor {
 
         String sqlType = rawSqlType.replaceAll(" ", "");
 
-        //extract mysql data type. eg: tinyint(1) -> tinyint, int(11) unsigned -> int
+        //extract mysql repair type. eg: tinyint(1) -> tinyint, int(11) unsigned -> int
         String regex = "(\\w+)(\\([0-9]+\\))";
         Pattern pattern = Pattern.compile(regex);
         Matcher m = pattern.matcher(sqlType);

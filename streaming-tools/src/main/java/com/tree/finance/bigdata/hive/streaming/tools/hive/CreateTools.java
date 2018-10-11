@@ -1,8 +1,7 @@
-package com.tree.finance.bigdata.hive.streaming.tools.cli;
+package com.tree.finance.bigdata.hive.streaming.tools.hive;
 
 
 import com.tree.finance.bigdata.hive.streaming.tools.config.Constants;
-import com.tree.finance.bigdata.hive.streaming.tools.hive.HiveDDLUtils;
 
 import java.util.Properties;
 

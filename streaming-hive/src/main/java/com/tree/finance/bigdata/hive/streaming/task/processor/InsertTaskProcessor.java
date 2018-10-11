@@ -94,7 +94,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 dbTaskStatusListener.onTaskSuccess(handled);
             } catch (Exception e) {
                 // ignore ack failure. Cause once success, source file is renamed, and will not be retried
-                LOG.warn("ack success failed, will not affect data accuracy", e);
+                LOG.warn("ack success failed, will not affect repair accuracy", e);
             }
 
             MetricReporter.insertFiles(handled.size() + 1, thread.getName());
@@ -140,7 +140,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
             } catch (Exception e) {
                 // ignore ack failure. Cause once success, source file is renamed, and will not be retried
-                LOG.warn("ack success failed, will not affect data accuracy", e);
+                LOG.warn("ack success failed, will not affect repair accuracy", e);
             }
             handleMoreTask(task.getTaskInfo());
         } catch (TransactionException e) {

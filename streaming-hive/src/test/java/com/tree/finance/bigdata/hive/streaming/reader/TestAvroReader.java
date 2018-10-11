@@ -13,7 +13,7 @@ public class TestAvroReader {
     @Test
     public void testAvroReader() {
 
-        Path path = new Path("/data/kafka-connect/sink/UPDATE/test/par_test/y=2018/m=07/d=11/1/0-192.168.201.138-1531740649131.done.sent");
+        Path path = new Path("/repair/kafka-connect/sink/UPDATE/test/par_test/y=2018/m=07/d=11/1/0-192.168.201.138-1531740649131.done.sent");
         try (AvroFileReader avroFileReader = new AvroFileReader(path)) {
             System.out.println(avroFileReader.getSchema());
             while (avroFileReader.hasNext()) {
