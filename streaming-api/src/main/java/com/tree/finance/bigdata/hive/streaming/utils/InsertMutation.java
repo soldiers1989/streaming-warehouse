@@ -82,14 +82,19 @@ public class InsertMutation extends Mutation {
     }
 
     public long commitTransaction() throws Exception {
-        if (toInsert.isEmpty()){
-            return super.commitTransaction();
+
+        if (!txnOpen()) {
+            return mutateRecords;
         }
+
         if (!checkExist) {  //records already write to file before, when we not check record exist in HBase
             long mutateNum = super.commitTransaction();
             hbaseUtils.batchPut(puts);
             return mutateNum;
         } else {
+            if (toInsert.isEmpty()){
+                return super.commitTransaction();
+            }
             long getStart = System.currentTimeMillis();
             Result[] results = hbaseUtils.getAll(gets);
             LOG.info("HBase batch get cost: {}ms", System.currentTimeMillis() - getStart);

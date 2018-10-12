@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Zhengsj
@@ -110,7 +111,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             updateMutation.commitTransaction();
             mqTaskStatusListener.onTaskSuccess((RabbitMqTask) task);
             dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
-            MetricReporter.updateFiles(1, thread.getName());
+            MetricReporter.updateFiles(1);
             long endTime = System.currentTimeMillis();
             LOG.info("file task success: {}, records: {}, cost: {}ms", task.getTaskInfo().getFilePath(), records, endTime - startTime);
             return true;
@@ -157,7 +158,13 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
     }
 
     public void process(ConsumedTask consumedTask) {
-        this.taskQueue.offer(consumedTask);
+        try {
+            while (!this.taskQueue.offer(consumedTask, 10, TimeUnit.SECONDS)) {
+                LOG.warn("task queue full");
+            }
+        } catch (InterruptedException e) {
+            //ignore
+        }
     }
 
     @Override
@@ -191,7 +198,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                     }
                 }
                 updateMutation.commitTransaction();
-                MetricReporter.updateFiles(1, thread.getName());
+                MetricReporter.updateFiles(1);
                 dbTaskStatusListener.onTaskSuccess(task);
                 long endTime = System.currentTimeMillis();
                 LOG.info("additional file task success: {} records: {}, cost: {}ms", task.getFilePath(), records, endTime - startTime);

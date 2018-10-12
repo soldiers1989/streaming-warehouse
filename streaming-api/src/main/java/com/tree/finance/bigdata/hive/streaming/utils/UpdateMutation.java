@@ -113,7 +113,6 @@ public class UpdateMutation extends Mutation {
                         } else { //update as insert when no record exist in HBase
                             recordIdentifier = new RecordIdentifier(transactionId,
                                     BUCKET_ID, rowId++);
-                            LOG.info("treat {} update record as insert: {}", table, bizId);
                         }
                     } else {
                         LOG.warn("no recordId in HBase or get empty value for: {}", bizId);
@@ -141,6 +140,8 @@ public class UpdateMutation extends Mutation {
                 //used in AvroObjectInspector
                 bizToRecIdMap.put(bizId, recordIdentifier);
                 recordIdToBuziId.put(recordIdentifier, bizId);
+            } catch (DataDelayedException e) {
+                throw e;
             } catch (Exception e) {
                 LOG.error("failed to process record: {}", bizId);
                 throw new RuntimeException(e);

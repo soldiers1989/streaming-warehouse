@@ -63,7 +63,7 @@ public abstract class AppConfig {
     @Default("5")
     public abstract int getDelayScheduleMin();
     @Config("task.delay.max.retries")
-    @Default("5")
+    @Default("3")
     public abstract int getDelayTaskMaxRetries();
     @Config("task.resources")
     @Default("mq")
@@ -84,4 +84,8 @@ public abstract class AppConfig {
     @Config("intermediate.avro.backup.path")
     @Default("/data/kafka-connect/done/")
     public abstract String getIntermediateBackUpPath();
+
+    @Config("delay.task.queue.size")
+    @Default("50")
+    public abstract int getDelayTaskQueueSize();
 }

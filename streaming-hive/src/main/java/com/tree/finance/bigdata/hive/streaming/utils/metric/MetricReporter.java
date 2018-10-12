@@ -19,12 +19,12 @@ public class MetricReporter {
 
     private static Counter processedInsertFiles = Counter.build().name("streaming_hive_insert_processed_files")
             .help("insert files processed")
-            .labelNames("ip", "thread")
+            .labelNames("ip")
             .register();
 
     private static Counter processedUpdateFiles = Counter.build().name("streaming_hive_update_processed_files")
             .help("update files processed")
-            .labelNames("ip", "thread")
+            .labelNames("ip")
             .register();
 
     private static Summary processLatency = Summary.build().name("streaming_hive_process_files")
@@ -46,13 +46,13 @@ public class MetricReporter {
         return processLatency.labels(NetworkUtils.localIp, "update").startTimer();
     }
 
-    public static void insertFiles(int increase, String threadName) {
-        processedInsertFiles.labels(NetworkUtils.localIp, threadName)
+    public static void insertFiles(int increase) {
+        processedInsertFiles.labels(NetworkUtils.localIp)
                 .inc(increase);
     }
 
-    public static void updateFiles(int increase, String threadName) {
-        processedUpdateFiles.labels(NetworkUtils.localIp, threadName)
+    public static void updateFiles(int increase) {
+        processedUpdateFiles.labels(NetworkUtils.localIp)
                 .inc(increase);
     }
 }

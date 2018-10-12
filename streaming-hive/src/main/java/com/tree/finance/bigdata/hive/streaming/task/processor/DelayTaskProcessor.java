@@ -10,6 +10,7 @@ import com.tree.finance.bigdata.hive.streaming.task.listener.DbTaskStatusListene
 import com.tree.finance.bigdata.hive.streaming.utils.InsertMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.UpdateMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
+import com.tree.finance.bigdata.task.Operation;
 import com.tree.finance.bigdata.utils.mysql.ConnectionFactory;
 import io.prometheus.client.Summary;
 import org.apache.avro.Schema;
@@ -23,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Zhengsj
@@ -39,7 +41,7 @@ public class DelayTaskProcessor {
 
     private DbTaskStatusListener dbTaskStatusListener = new DbTaskStatusListener(factory);
 
-    private LinkedBlockingQueue<MysqlTask> taskQueue = new LinkedBlockingQueue<>(10);
+    private LinkedBlockingQueue<MysqlTask> taskQueue = new LinkedBlockingQueue<>(config.getDelayTaskQueueSize());
 
     private Thread thread;
 
@@ -83,21 +85,26 @@ public class DelayTaskProcessor {
             LOG.error("maybe hadoop file system unavailable, skip task", e);
         }
 
-        //handle as insert, and last time handle as update
-        if (task.getTaskInfo().getAttempt() == (config.getDelayTaskMaxRetries() - 1)) {
-            handleAsInsertTask(task);
+        if (task.getTaskInfo().getOp().equals(Operation.CREATE)) {
+            handleInsertTask(task);
         } else {
-            handleAsUpdateTask(task);
+            //handle as insert, and last time handle as update
+            if (task.getTaskInfo().getAttempt() >= config.getDelayTaskMaxRetries()) {
+                handleUpdateTask(task, true);
+            } else {
+                handleUpdateTask(task, false);
+            }
         }
+
     }
 
-    private void handleAsInsertTask(MysqlTask task) {
+    private void handleInsertTask(MysqlTask task) {
         InsertMutation mutationUtils = new InsertMutation(task.getTaskInfo().getDb(),
                 task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
                 task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
         try {
             long start = System.currentTimeMillis();
-            LOG.info("delay task start as insert : {}", task.getTaskInfo().getFilePath());
+            LOG.info("handle delayed insert task: {}", task.getTaskInfo().getFilePath());
             try (AvroFileReader reader = new AvroFileReader(new Path(task.getTaskInfo().getFilePath()))) {
                 Schema recordSchema = reader.getSchema();
                 mutationUtils.beginFixTransaction(recordSchema, ConfigHolder.getHiveConf());
@@ -107,9 +114,8 @@ public class DelayTaskProcessor {
                 }
             }
             mutationUtils.commitTransaction();
-            //will only insert records that not exist, so should handle this update task again, for the rest exist update record
-            dbTaskStatusListener.onTaskDelay(task.getTaskInfo());
-            LOG.info("delay task as insert success : {}, cost: {}ms", task.getTaskInfo().getFilePath(),
+            dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
+            LOG.info("delay insert task success : {}, cost: {}ms", task.getTaskInfo().getFilePath(),
                     System.currentTimeMillis() - start);
         } catch (TransactionException e) {
             try {
@@ -134,13 +140,16 @@ public class DelayTaskProcessor {
         }
     }
 
-    public void handleAsUpdateTask(MysqlTask task) {
+    public void handleUpdateTask(MysqlTask task, boolean insertNoExist) {
         Summary.Timer timer = MetricReporter.startUpdate();
         long startTime = System.currentTimeMillis();
-        LOG.info("delay task start: {}", task.getTaskInfo().getFilePath());
+        if (insertNoExist) {
+            LOG.info("will insert not exisit update record: {}", task.getTaskInfo());
+        }
+        LOG.info("delay update task start: {}", task.getTaskInfo().getFilePath());
         UpdateMutation updateMutation = new UpdateMutation(task.getTaskInfo().getDb(), task.getTaskInfo().getTbl(),
                 task.getTaskInfo().getPartitionName(), task.getTaskInfo().getPartitions(),
-                config.getMetastoreUris(), ConfigFactory.getHbaseConf());
+                config.getMetastoreUris(), ConfigFactory.getHbaseConf(), insertNoExist);
         try {
             Path path = new Path(task.getTaskInfo().getFilePath());
             long records = 0l;
@@ -194,7 +203,13 @@ public class DelayTaskProcessor {
     }
 
     public void process(MysqlTask consumedTask) {
-        this.taskQueue.offer(consumedTask);
+        try {
+            while (!stop && !this.taskQueue.offer(consumedTask, 10, TimeUnit.SECONDS)) {
+                LOG.warn("task queue full");
+            }
+        } catch (InterruptedException e) {
+            //ignore
+        }
     }
 
     public void stop() {

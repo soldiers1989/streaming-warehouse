@@ -267,7 +267,6 @@ public abstract class Mutation {
 
     public void beginFixTransaction(Schema schema, HiveConf conf) throws Exception {
         beginTransaction(schema, conf);
-        LOG.info("started fix transactin.");
         this.checkExist = true;
     }
 
