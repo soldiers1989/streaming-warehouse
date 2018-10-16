@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-operation=("createHiveTbl" "setCheckTime" "loadRecId" "catAvro" "catRecId" "removeDuplicate")
+operation=("createHiveTbl" "setCheckTime" "loadRecId" "catAvro" "catRecId" "removeDuplicate" "compact")
 
 if [ $# -eq 0 ]
 then
@@ -9,6 +9,14 @@ then
 fi
 
 op=$1
+APP_DEBUG="false"
+
+if [ $op == "debug" ] ; then
+  APP_DEBUG=true
+  shift
+  op=$1
+fi
+
 shift
 
 if ! [[ "${operation[@]}" =~ $op ]]
@@ -22,33 +30,32 @@ out_log=""
 if [ ${op} == "createHiveTbl" ] ; then
   export HADOOP_USER_NAME="hive"
   main_class="com.tree.finance.bigdata.hive.streaming.tools.hive.CreateTools"
-  out_log="create-hive-tbl.out"
 
 elif [ ${op} == "loadRecId" ] ; then
   export HADOOP_USER_NAME="hbase"
   main_class="com.tree.finance.bigdata.hive.streaming.tools.recId.loader.RecordIdLoader"
-  out_log="load-id-"${2}".out"
 
 elif [ ${op} == "setCheckTime" ] ; then
   main_class="com.tree.finance.bigdata.hive.streaming.tools.mutate.configuration.CheckTimeConfigTools"
-  out_log="set-check-time.out"
 
 elif [ ${op} == "catAvro" ] ; then
   main_class="com.tree.finance.bigdata.hive.streaming.tools.avro.AvroTools"
-  out_log="cat-avro.out"
 
 elif [ ${op} == "catRecId" ] ; then
   main_class="com.tree.finance.bigdata.hive.streaming.tools.recId.insight.InsightTools"
-  out_log="cat-RecId.out"
 
 elif [ ${op} == "removeDuplicate" ] ; then
   main_class="com.tree.finance.bigdata.hive.streaming.tools.repair.DuplicationRemover"
-  out_log="cat-RecId.out"
+
+elif [ ${op} == "compact" ] ; then
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.hive.CompactTableTools"
 
 else
   exit
 
 fi
+
+out_log=${op}".out"
 
 
 bin_dir=$(cd `dirname $0`; pwd)
@@ -64,6 +71,10 @@ CLASS_PATH="${conf_dir}:${lib_dir}/*:$hadoop_conf_dir:$HADOOP_CLASS_PATH:${HBASE
 
 DEBUG_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=12346"
 JVM_OPTS="-Xmx1G -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${log_dir} "
+
+if [ "$APP_DEBUG" == "true" ] ; then
+  JVM_OPTS="$JVM_OPTS $DEBUG_OPTS"
+fi
 
 if [ ! -e ${log_dir} ]; then
   mkdir -p ${log_dir}

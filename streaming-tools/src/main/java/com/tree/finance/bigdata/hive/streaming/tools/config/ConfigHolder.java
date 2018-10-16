@@ -26,6 +26,7 @@ public class ConfigHolder {
 
     private static HiveConf initHiveConf() {
         HiveConf conf = new HiveConf();
+        conf.set("hive.metastore.uris", config.getMetastoreUris());
 //        conf.setInt(MutatorClient.TRANSACTIONAL_LOCK_RETIES_KEY, 1);
         return conf;
     }
