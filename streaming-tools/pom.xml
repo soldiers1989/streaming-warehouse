@@ -127,7 +127,7 @@
                         <!--名字任意 -->
                         <id>make-assembly</id>
                         <!-- 绑定到package生命周期阶段上 -->
-                        <phase>package</phase>
+                        <!--<phase>package</phase>-->
                         <goals>
                             <!-- 只运行一次 -->
                             <goal>single</goal>

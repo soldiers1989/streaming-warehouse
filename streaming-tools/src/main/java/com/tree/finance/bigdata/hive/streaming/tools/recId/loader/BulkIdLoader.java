@@ -84,7 +84,6 @@ public class BulkIdLoader {
         this.cores = cores;
         this.db = db;
         this.table = table;
-        this.parFilter = parFilter.replaceAll(SPACE_REPLACEMENT, " ");
         this.columnFamily = Bytes.toBytes(ConfigFactory.getHbaseColumnFamily());
         this.recordIdentifier = Bytes.toBytes(ConfigFactory.getHbaseRecordIdColumnIdentifier());
         this.updateTimeIdentifier = Bytes.toBytes(ConfigFactory.getHbaseUpdateTimeColumnIdentifier());

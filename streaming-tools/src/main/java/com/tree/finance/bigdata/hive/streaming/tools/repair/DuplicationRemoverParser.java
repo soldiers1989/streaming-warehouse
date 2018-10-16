@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class DuplicationRemoverParser {
+    private static final String OPTION_EXECUTED = "executed";
     private static String OPTION_NAME_DB = "db";
     private static String OPTION_NAME_TBL = "table";
     private static String OPTION_CORES = "cores";
@@ -36,6 +37,8 @@ public class DuplicationRemoverParser {
                 .desc("help").build();
         Option parOption = Option.builder(OPTION_PARTITION_FILER).hasArg(true).required(false)
                 .desc("partition filter like: p_y=2018 and p_m=8").build();
+        Option executedOption = Option.builder(OPTION_EXECUTED).hasArg(false).required(false)
+                .desc("have executed repair before").build();
 
         options.addOption(dbOption);
         options.addOption(tblOption);
@@ -81,5 +84,9 @@ public class DuplicationRemoverParser {
         formatter.printUsage(writer, 500, "create hive table form mysql table definition", buildOptions());
         writer.flush();
         writer.close();
+    }
+
+    public boolean getExecuted() {
+        return commandLine.hasOption(OPTION_EXECUTED);
     }
 }

@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-operation=("createHiveTbl" "setCheckTime" "loadRecId" "catAvro" "catRecId")
+operation=("createHiveTbl" "setCheckTime" "loadRecId" "catAvro" "catRecId" "removeDuplicate")
 
 if [ $# -eq 0 ]
 then
@@ -39,6 +39,10 @@ elif [ ${op} == "catAvro" ] ; then
 
 elif [ ${op} == "catRecId" ] ; then
   main_class="com.tree.finance.bigdata.hive.streaming.tools.recId.insight.InsightTools"
+  out_log="cat-RecId.out"
+
+elif [ ${op} == "removeDuplicate" ] ; then
+  main_class="com.tree.finance.bigdata.hive.streaming.tools.repair.DuplicationRemover"
   out_log="cat-RecId.out"
 
 else
