@@ -151,7 +151,7 @@ public class UpdateMutation extends Mutation {
     }
 
     @Override
-    public void beginStreamTransaction(Schema schema, HiveConf hiveConf) throws Exception {
+    public void beginTransaction(Schema schema, HiveConf hiveConf) throws Exception {
         this.recordSchema = schema;
         this.checkExist = true;
         this.conf = hiveConf;
@@ -194,8 +194,8 @@ public class UpdateMutation extends Mutation {
 
             Long recordUpdateTime = bizIdToUpdateTime.get(recordIdToBuziId.get(recordIdentifier));
 
-            if (null == latestUpdateTime || this.latestUpdateTime < recordUpdateTime) {
-                this.latestUpdateTime = recordUpdateTime;
+            if (null == latestParUpdateTime || this.latestParUpdateTime < recordUpdateTime) {
+                this.latestParUpdateTime = recordUpdateTime;
             }
 
             Put put = new Put(Bytes.toBytes(recordIdToBuziId.get(recordIdentifier)));

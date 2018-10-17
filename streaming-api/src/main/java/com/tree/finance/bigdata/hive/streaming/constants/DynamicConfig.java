@@ -43,17 +43,17 @@ public class DynamicConfig {
     }*/
 
     //update stream update_time in hbase, include table update_time, partition update_time
-    public void refreshStreamTime (String db, String table, String partitionName, String updateTime) throws Exception {
+    public void refreshStreamTime (String db, String table, String partitionName, String parUpdateTime, String tblUpdateTime) throws Exception {
         List<Put> puts = new ArrayList<>();
 
         String parKey = assembleRowKey(db, table, partitionName);
         Put parPut = new Put(Bytes.toBytes(parKey));
-        parPut.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(updateTime));
+        parPut.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(parUpdateTime));
         puts.add(parPut);
 
         String tblKey = db + "." + table;
         Put tblPut = new Put(Bytes.toBytes(tblKey));
-        tblPut.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(updateTime));
+        tblPut.addColumn(colFamily, streamUpdateTime, Bytes.toBytes(tblUpdateTime));
         puts.add(tblPut);
 
         hbaseUtils.batchPut(puts);

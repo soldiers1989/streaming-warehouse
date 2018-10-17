@@ -107,7 +107,7 @@ public class DelayTaskProcessor {
             LOG.info("handle delayed insert task: {}", task.getTaskInfo().getFilePath());
             try (AvroFileReader reader = new AvroFileReader(new Path(task.getTaskInfo().getFilePath()))) {
                 Schema recordSchema = reader.getSchema();
-                mutationUtils.beginFixTransaction(recordSchema, ConfigHolder.getHiveConf());
+                mutationUtils.beginTransaction(recordSchema, ConfigHolder.getHiveConf());
                 while (reader.hasNext()) {
                     GenericData.Record record = reader.next();
                     mutationUtils.insert(record);
@@ -155,7 +155,7 @@ public class DelayTaskProcessor {
             long records = 0l;
             try (AvroFileReader reader = new AvroFileReader(path);) {
                 Schema recordSchema = reader.getSchema();
-                updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
+                updateMutation.beginTransaction(recordSchema, ConfigHolder.getHiveConf());
                 while (reader.hasNext()) {
                     GenericData.Record record = reader.next();
                     updateMutation.update(record);

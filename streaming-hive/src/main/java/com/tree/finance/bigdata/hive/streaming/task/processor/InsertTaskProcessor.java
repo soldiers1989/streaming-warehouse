@@ -300,7 +300,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             if (!mutationUtils.txnOpen()) {
                 Schema recordSchema = reader.getSchema();
                 //check insert record exist
-                mutationUtils.beginFixTransaction(recordSchema, ConfigHolder.getHiveConf());
+                mutationUtils.beginTransaction(recordSchema, ConfigHolder.getHiveConf());
             }
             while (reader.hasNext()) {
                 GenericData.Record record = reader.next();

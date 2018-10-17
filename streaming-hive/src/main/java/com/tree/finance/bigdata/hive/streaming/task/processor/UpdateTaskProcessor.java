@@ -101,7 +101,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
             long records = 0l;
             try (AvroFileReader reader = new AvroFileReader(path)) {
                 Schema recordSchema = reader.getSchema();
-                updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
+                updateMutation.beginTransaction(recordSchema, ConfigHolder.getHiveConf());
                 while (reader.hasNext()) {
                     GenericData.Record record = reader.next();
                     updateMutation.update(record);
@@ -190,7 +190,7 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
                 long records = 0;
                 try (AvroFileReader reader = new AvroFileReader(path);) {
                     Schema recordSchema = reader.getSchema();
-                    updateMutation.beginStreamTransaction(recordSchema, ConfigHolder.getHiveConf());
+                    updateMutation.beginTransaction(recordSchema, ConfigHolder.getHiveConf());
                     while (reader.hasNext()) {
                         GenericData.Record record = reader.next();
                         updateMutation.update(record);

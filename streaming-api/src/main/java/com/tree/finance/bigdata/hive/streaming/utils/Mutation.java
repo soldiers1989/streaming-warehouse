@@ -75,7 +75,9 @@ public abstract class Mutation {
 
     protected DynamicConfig dynamicConfig;
 
-    protected Long latestUpdateTime;
+    protected Long latestParUpdateTime;
+
+    protected Long latestTblUpdateTime;
 
     protected long mutateRecords;
 
@@ -106,9 +108,12 @@ public abstract class Mutation {
         }
         closeClientQueitely();
 
-        if (null != latestUpdateTime && dynamicConfig != null) {
+        if (null != latestParUpdateTime && dynamicConfig != null) {
             try {
-                dynamicConfig.refreshStreamTime(db, table, partition, Long.toString(latestUpdateTime));
+                if (latestParUpdateTime > latestTblUpdateTime) {
+                    latestTblUpdateTime = latestParUpdateTime;
+                }
+                dynamicConfig.refreshStreamTime(db, table, partition, Long.toString(latestParUpdateTime), Long.toString(latestTblUpdateTime));
             } catch (Throwable e) {
                 LOG.warn("error update fix update_time table, may cause program efficiency problem when fixing repair.", e);
             }
@@ -189,6 +194,8 @@ public abstract class Mutation {
     }
 
     protected void beginTransaction(Schema schema, HiveConf conf) throws Exception {
+        this.checkExist = true;
+
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
         if (StringUtils.isEmpty(updateCol)) {
             LOG.error("update column not found for table: {}, schema: {}", db + "." + table, schema);
@@ -230,9 +237,19 @@ public abstract class Mutation {
                 .table(destinations.get(0))
                 .mutatorFactory(this.factory)
                 .build();
+
+        getStreamUpdateTime();
     }
 
-    public void beginStreamTransaction(Schema schema, HiveConf conf) throws Exception {
+    public void getStreamUpdateTime() {
+        this.dynamicConfig = new DynamicConfig();
+        Long[] streamAndFixParTime = dynamicConfig.getPartitionUpdateTimes(db, table, partition);
+        Long[] streamAndFixTblTime = dynamicConfig.getTableUpdateTimes(db, table);
+        latestParUpdateTime = streamAndFixParTime[0];
+        latestTblUpdateTime = streamAndFixTblTime[0];
+    }
+
+    /*public void beginStreamTransaction(Schema schema, HiveConf conf) throws Exception {
         beginTransaction(schema, conf);
         this.dynamicConfig = new DynamicConfig();
 
@@ -263,12 +280,12 @@ public abstract class Mutation {
         }
         this.checkExist = false;
         return;
-    }
+    }*/
 
-    public void beginFixTransaction(Schema schema, HiveConf conf) throws Exception {
+    /*public void beginFixTransaction(Schema schema, HiveConf conf) throws Exception {
         beginTransaction(schema, conf);
         this.checkExist = true;
-    }
+    }*/
 
     public long getTransactionId() {
         return transactionId;

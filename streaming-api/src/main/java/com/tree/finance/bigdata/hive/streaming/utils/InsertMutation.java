@@ -35,14 +35,8 @@ public class InsertMutation extends Mutation {
 
 
     @Override
-    public void beginStreamTransaction(Schema schema, HiveConf conf) throws Exception{
-        super.beginStreamTransaction(schema, conf);
-        this.RECID_PREFIX = transactionId + "_" + BUCKET_ID + "_";
-    }
-
-    @Override
-    public void beginFixTransaction(Schema schema, HiveConf conf) throws Exception {
-        super.beginFixTransaction(schema, conf);
+    public void beginTransaction(Schema schema, HiveConf conf) throws Exception{
+        super.beginTransaction(schema, conf);
         this.RECID_PREFIX = transactionId + "_" + BUCKET_ID + "_";
     }
 
@@ -57,8 +51,8 @@ public class InsertMutation extends Mutation {
         }
 
         //record latest update_time of streaming repair
-        if (latestUpdateTime == null || latestUpdateTime < recordUpdateTime) {
-            this.latestUpdateTime = recordUpdateTime;
+        if (latestParUpdateTime == null || latestParUpdateTime < recordUpdateTime) {
+            this.latestParUpdateTime = recordUpdateTime;
         }
 
         if (checkExist) {   //add bizId, Get request to cache, avoid recompution
