@@ -8,7 +8,7 @@ rabbit.mq.task.queue : streaming_hive_file_test
 
 # Avro Writer
 sink.writer.ttl.min: 5
-writer.max.msg.per.file : 1000000
+writer.max.msg.per.file : 100000
 writer.base.path : /data/kafka-connect/sink/
 
 # Task Dispatch
