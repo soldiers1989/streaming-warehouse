@@ -1,6 +1,7 @@
 package com.tree.finance.bigdata.kafka.connect.sink.fs.writer;
 
 import com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig;
+import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.avro.AvroWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,27 +26,27 @@ public class WriterManager extends WriterFactory {
 
     private CountDownLatch countDownLatch;
 
-    private Constructor constructor;
-
-    private FileManager fileManager;
+    private TaskManager taskManager;
 
     private int maxOpenFilesPerTask;
 
-    public WriterManager(SinkConfig config) {
-        super(config);
-        this.checkThread = new Thread(this::startCheck, "writer-check-" + config.getTaskId());
-        this.fileManager = new FileManager(config);
+    private String db;
 
+    private int id;
+
+    public WriterManager(String db, int id) {
+        this.checkThread = new Thread(this::startCheck, "writer-check-" + id);
+        this.taskManager = new TaskManager(id);
+        this.db = db;
+        this.id = id;
     }
 
     @Override
     public void init() throws Exception {
         running = true;
-        Class writerClass = Class.forName(config.getWriterClass());
-        this.constructor = writerClass.getConstructor(WriterRef.class, SinkConfig.class);
         this.countDownLatch = new CountDownLatch(1);
         this.checkThread.start();
-        this.fileManager.init();
+        this.taskManager.init();
     }
 
     @Override
@@ -70,7 +71,7 @@ public class WriterManager extends WriterFactory {
                     writer.close();
 
                     //should not commit parameter writer ref， which has no path
-                    fileManager.commit(writer.ref);
+                    taskManager.commit(writer.ref);
 
                     Writer newWriter = create(writerRef);
                     newWriter.tryLock();
@@ -87,23 +88,25 @@ public class WriterManager extends WriterFactory {
 
     @Override
     protected Writer create(WriterRef writerRef) throws Exception {
-        Writer writer = (Writer) constructor.newInstance(writerRef, config);
+        Writer writer = new AvroWriter(writerRef);
         writer.init();
         return writer;
     }
 
     @Override
     public void close() {
+        LOG.info("stooping WriteManager {}-{}", db, id);
         this.running = false;
         this.checkThread.interrupt();
         try {
             countDownLatch.await();
         }catch (InterruptedException e){
-            LOG.warn("interrupted while stopping");
+            LOG.warn("interrupted while await countdown latch");
         }
+        LOG.info("stopped check thread");
         writerMap.forEach(this::closeImmedidately);
-        LOG.info("WriterManager closed");
-        this.fileManager.close();
+        LOG.info("All writing files closed");
+        this.taskManager.close();
     }
 
     private void startCheck() {
@@ -111,11 +114,14 @@ public class WriterManager extends WriterFactory {
             try {
                 writerMap.forEach(this::closeIfExpired);
                 Thread.sleep(5000);
+            }catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             } catch (Throwable t) {
                 LOG.error("error checking writers", t);
             }
         }
-        LOG.info("check thread stopped...");
+        countDownLatch.countDown();
+        LOG.info("stopped check thread...");
     }
 
     private void closeIfExpired(WriterRef ref, Writer writer) {
@@ -123,7 +129,7 @@ public class WriterManager extends WriterFactory {
             if (writer.isExpired()) {
                 writerMap.remove(ref);
                 writer.close();
-                fileManager.commit(ref);
+                taskManager.commit(ref);
             }
         } catch (Exception e) {
             LOG.error("failed to check writer expiration", e);
@@ -134,7 +140,7 @@ public class WriterManager extends WriterFactory {
         try {
             writerMap.remove(ref);
             writer.close();
-            fileManager.commit(ref);
+            taskManager.commit(ref);
         } catch (Exception e) {
             LOG.error("", e);
         }

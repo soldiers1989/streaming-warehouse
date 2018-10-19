@@ -30,8 +30,8 @@ public class AvroWriter extends Writer<GenericData.Record> {
 
     private Path path;
 
-    public AvroWriter(WriterRef ref, SinkConfig config) {
-        super(ref, config);
+    public AvroWriter(WriterRef ref) {
+        super(ref);
         this.path = makePath();
         ref.setPath(path);
     }

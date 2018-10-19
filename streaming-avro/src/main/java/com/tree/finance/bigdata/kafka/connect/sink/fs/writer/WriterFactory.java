@@ -10,12 +10,6 @@ import com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig;
  */
 public abstract class WriterFactory {
 
-    SinkConfig config;
-
-    public WriterFactory(SinkConfig config){
-        this.config = config;
-    }
-
     public abstract void init() throws Exception;
 
     public abstract Writer getOrCreate(WriterRef writerRef) throws Exception;

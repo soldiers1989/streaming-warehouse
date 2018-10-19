@@ -1,6 +1,6 @@
 package com.tree.finance.bigdata.kafka.connect.sink.fs.processor;
 
-import com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig;
+import com.tree.finance.bigdata.kafka.connect.sink.fs.config.PioneerConfig;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.convertor.AvroSchemaClient;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.convertor.ValueConvertor;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.partition.PartitionHelper;
@@ -11,16 +11,21 @@ import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.WriterManager;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.WriterRef;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.avro.AvroWriterRef;
 import com.tree.finance.bigdata.task.Operation;
+import io.confluent.connect.avro.AvroConverter;
 import org.apache.avro.generic.GenericData;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.connect.data.SchemaAndValue;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.sink.SinkRecord;
+import org.apache.kafka.connect.storage.Converter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 import static com.tree.finance.bigdata.schema.SchemaConstants.*;
 
@@ -31,25 +36,73 @@ import static com.tree.finance.bigdata.schema.SchemaConstants.*;
  */
 public class Processor {
 
-    private SinkConfig config;
-
+    private Map config;
     private WriterFactory writerFactory;
-
     private PartitionHelper partitionHelper;
-
-    private String dbName;
-
+    private String sourceDb;
+    private final String targetDB;
     private static Logger LOG = LoggerFactory.getLogger(Processor.class);
+    private int processorId;
+    private static Converter keyConverter = new AvroConverter();
+    private static Converter valueConverter = new AvroConverter();
+    private KafkaConsumer<byte[], byte[]> consumer;
+    private Thread consumerThread;
+    private volatile boolean stop;
+    private CountDownLatch latch = new CountDownLatch(1);
 
-    public Processor(SinkConfig config) {
-        this.partitionHelper = new PartitionHelper(config);
+    public Processor(String sourceDb, int processorId) {
+        this.partitionHelper = new PartitionHelper();
         this.config = config;
-        this.writerFactory = new WriterManager(config);
-        this.dbName = config.getHiveDestinationDbName();
+        this.writerFactory = new WriterManager(sourceDb, processorId);
+        this.sourceDb = sourceDb;
+        this.targetDB = PioneerConfig.getHiveDestinationDbName(sourceDb);
+        this.processorId = processorId;
+        this.consumerThread = new Thread(this::run, "consumer-" + targetDB + "-" + processorId);
     }
 
-    public void init() throws Exception {
-        writerFactory.init();
+    public void start() {
+        try {
+            writerFactory.init();
+            //Kafka Consumer
+            Map<String, Object> props = PioneerConfig.getKafkaConf();
+            props.put(ConsumerConfig.GROUP_ID_CONFIG, PioneerConfig.getConsumerGroupId(sourceDb));
+            props.put("schema.registry.url", PioneerConfig.getConnectSchemaUrl());
+            keyConverter.configure(props, true);
+            valueConverter.configure(props, false);
+            consumer = new KafkaConsumer(props);
+            consumer.subscribe(Arrays.asList(PioneerConfig.getTopics(sourceDb)));
+            consumerThread.start();
+        } catch (Exception e) {
+            LOG.error("", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void run() {
+        while (!stop) {
+            try {
+                ConsumerRecords<byte[], byte[]> msgs = consumer.poll(10000l);
+                for (ConsumerRecord<byte[], byte[]> msg : msgs) {
+                    SchemaAndValue keyAndSchema = keyConverter.toConnectData(msg.topic(), msg.key());
+                    SchemaAndValue valueAndSchema = valueConverter.toConnectData(msg.topic(), msg.value());
+                    Long timestamp = msg.timestamp();
+                    writeRecord(new SinkRecord(msg.topic(), msg.partition(),
+                            keyAndSchema.schema(), keyAndSchema.value(),
+                            valueAndSchema.schema(), valueAndSchema.value(),
+                            msg.offset(),
+                            timestamp,
+                            msg.timestampType()));
+                }
+            } catch (Throwable t) {
+                LOG.error("error", t);
+            }
+        }
+        try {
+            consumer.close();
+        } catch (Exception e) {
+            LOG.error("error closing consumer: {}", e);
+        }
+        LOG.info("processor consumer thread stopped.");
     }
 
     private void writeRecord(SinkRecord sinkRecord) throws Exception {
@@ -62,7 +115,7 @@ public class Processor {
             }
             writer = writerFactory.getOrCreate(ref);
             //one connector on database
-            writer.write(ValueConvertor.connectToGeneric(((AvroWriterRef)ref).getSchema(), sinkRecord));
+            writer.write(ValueConvertor.connectToGeneric(((AvroWriterRef) ref).getSchema(), sinkRecord));
         } finally {
             if (writer != null) {
                 writer.unlock();
@@ -76,6 +129,7 @@ public class Processor {
             return null;
         }
         Struct source = (Struct) struct.get(FIELD_SOURCE);
+        //One processor processes only one database, we subscribe topics of the same db, so not validate database name
 //        String dbName = DatabaseUtils.getConvertedDb(String.valueOf(source.get(FIELD_DB)));
         String tableName = String.valueOf(source.get(FIELD_TABLE));
         Struct after = (Struct) struct.get(FIELD_AFTER);
@@ -83,9 +137,10 @@ public class Processor {
             after = (Struct) struct.get(FIELD_BEFORE);
         }
         Integer version = sinkRecord.valueSchema().version();
+
         String op = ((Struct) sinkRecord.value()).getString(FIELD_OP);
 
-        List<String> sourceParCols = partitionHelper.getSourcePartitionCols(new VersionedTable(dbName, tableName, version), after);
+        List<String> sourceParCols = partitionHelper.getSourcePartitionCols(new VersionedTable(targetDB, tableName, version), after);
         List<String> partitionVals = partitionHelper.buildYmdPartitionVals(sourceParCols.get(0), after);
 
         //if partition column has no value，then partition by current time for insert, ignore for update and delete.
@@ -97,24 +152,23 @@ public class Processor {
                 partitionVals.add(Integer.toString(calendar.get(Calendar.MONTH)));
                 partitionVals.add(Integer.toString(calendar.get(Calendar.DAY_OF_MONTH)));
             } else {
-                LOG.warn("no partition value found, table: {}.{}, record: {}", dbName, tableName, after);
+                LOG.warn("no partition value found, table: {}.{}, record: {}", targetDB, tableName, after);
                 return null;
             }
         }
 
-        VersionedTable versionedTable = new VersionedTable(dbName, tableName, version);
+        VersionedTable versionedTable = new VersionedTable(targetDB, tableName, version);
 
-        return new AvroWriterRef(dbName, tableName, partitionVals, 1, config.getTaskId(),
-                Operation.forCode(op), AvroSchemaClient.getSchema(versionedTable, sinkRecord), version);
-    }
-
-    public void process(Collection<SinkRecord> records) throws Exception{
-        for (SinkRecord record : records){
-            writeRecord(record);
-        }
+        //not differentiate insert, update, delete
+        return new AvroWriterRef(targetDB, tableName, partitionVals, 1, processorId,
+                Operation.ALL, AvroSchemaClient.getSchema(versionedTable, sinkRecord), version);
     }
 
     public void stop() {
+        LOG.info("stopping processor: {}-{}", targetDB, processorId);
+        this.stop = true;
+        latch.countDown();
         this.writerFactory.close();
+        LOG.info("stopped processor: {}-{}", targetDB, processorId);
     }
 }

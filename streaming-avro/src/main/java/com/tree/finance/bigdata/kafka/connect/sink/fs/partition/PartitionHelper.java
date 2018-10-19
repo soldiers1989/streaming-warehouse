@@ -1,6 +1,7 @@
 package com.tree.finance.bigdata.kafka.connect.sink.fs.partition;
 
 import com.google.common.collect.Lists;
+import com.tree.finance.bigdata.kafka.connect.sink.fs.config.PioneerConfig;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.schema.VersionedTable;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.utils.ConnectFieldUtils;
@@ -25,12 +26,12 @@ public class PartitionHelper {
 
     public static final List<String> SINK_PARTITIONS_DEFAUL = Lists.newArrayList("p_y", "p_m", "p_d");
 
-    SinkConfig config;
+    String globalDefaults[];
 
     private static final Logger LOG = LoggerFactory.getLogger(PartitionHelper.class);
 
-    public PartitionHelper(SinkConfig config) {
-        this.config = config;
+    public PartitionHelper() {
+        this.globalDefaults = PioneerConfig.getDefaultParClos().toLowerCase().split("\\|");
     }
 
     /**
@@ -44,7 +45,6 @@ public class PartitionHelper {
             return sourcePartitioinCols.get(sinkTable);
         }
 
-        String globalDefaults[] = config.getDefaultParClos().toLowerCase().split("\\|");
         List<String> createStrs = Arrays.asList(globalDefaults[0].split(","));
         List<String> timeStrs = Arrays.asList(globalDefaults[1].split(","));
 

@@ -31,10 +31,10 @@ public class DfsSinkTask extends SinkTask {
     public void start(Map<String, String> props) {
         log.info("Starting task with config: {}", props);
         try {
-            SinkConfig sinkConfig = new SinkConfig(props);
-            DfsConfigHolder.init(sinkConfig);
-            processor = new Processor(sinkConfig);
-            processor.init();
+//            SinkConfig sinkConfig = new SinkConfig(props);
+//            DfsConfigHolder.init(sinkConfig);
+//            processor = new Processor(sinkConfig);
+            processor.start();
         } catch (Exception e) {
             log.error("update hive config error,", e);
             throw new RuntimeException(e);
@@ -47,7 +47,7 @@ public class DfsSinkTask extends SinkTask {
             return;
         }
         try {
-            processor.process(records);
+//            processor.process(records);
         } catch (Exception e) {
             log.error("Write of {} records failed, , table: {}", records.size(), e);
             throw new RuntimeException(e);
@@ -60,4 +60,5 @@ public class DfsSinkTask extends SinkTask {
             processor.stop();
         }
     }
+
 }

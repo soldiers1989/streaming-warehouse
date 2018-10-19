@@ -1,5 +1,6 @@
 package com.tree.finance.bigdata.kafka.connect.sink.fs.writer;
 
+import com.tree.finance.bigdata.kafka.connect.sink.fs.config.PioneerConfig;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig;
 import com.tree.finance.bigdata.task.FileSuffix;
 import com.tree.finance.bigdata.task.Operation;
@@ -23,8 +24,8 @@ public abstract class Writer<T> {
     protected WriterRef ref;
 
     protected long wroteMsg;
-    protected long maxInsertMsgPerFile;
-    protected long maxUpdateMsgPerFile;
+    protected long maxMsgPerFile;
+    protected String basePath;
 
     protected long createTime = System.currentTimeMillis();
     protected long ttlMillSec;
@@ -33,16 +34,13 @@ public abstract class Writer<T> {
 
     protected volatile boolean closed = false;
 
-    protected SinkConfig config;
-
     private volatile boolean writing = false;
 
-    protected Writer(WriterRef ref, SinkConfig config) {
-        this.config = config;
+    protected Writer(WriterRef ref) {
         this.ref = ref;
-        this.maxInsertMsgPerFile = config.getWriterMaxInsertMsg();
-        this.maxUpdateMsgPerFile = config.getWriterMaxUpdateMsg();
-        this.ttlMillSec = config.getWriterTTLMin() * 1000 * 60;
+        this.basePath = PioneerConfig.getWriterBasePath();
+        this.maxMsgPerFile = PioneerConfig.getWriterMaxMsg();
+        this.ttlMillSec = PioneerConfig.getWriterTTLMin() * 1000 * 60;
     }
 
     public abstract void write(T t) throws Exception;
@@ -52,20 +50,10 @@ public abstract class Writer<T> {
     public abstract void init() throws Exception;
 
     public boolean isExpired() {
-
-        if (ref.getOp().equals(Operation.CREATE)) {
-            if (wroteMsg > maxInsertMsgPerFile) {
-                return true;
-            }
-        } else if (ref.getOp().equals(Operation.UPDATE) || ref.getOp().equals(Operation.DELETE)) {
-            if (wroteMsg > maxUpdateMsgPerFile) {
-                return true;
-            }
-        } else {
-          throw new RuntimeException("unknown operation type: " + ref.getOp());
+        if (wroteMsg > maxMsgPerFile) {
+            return true;
         }
-
-        return  System.currentTimeMillis() - createTime > ttlMillSec;
+        return System.currentTimeMillis() - createTime > ttlMillSec;
     }
 
     public boolean isClosed() {
@@ -76,8 +64,8 @@ public abstract class Writer<T> {
      * path: db/tbl/bucket/taskId/insert or update/write.tmp
      **/
     protected Path makePath() {
-        StringBuilder sb = new StringBuilder(config.getWriterBasePath());
-        sb.append(DFS_FILE_SEPARATOR).append(ref.getOp())
+        StringBuilder sb = new StringBuilder(basePath);
+        sb.append(DFS_FILE_SEPARATOR)
                 .append(DFS_FILE_SEPARATOR).append(ref.getDb())
                 .append(DFS_FILE_SEPARATOR).append(ref.getTable())
                 .append(DFS_FILE_SEPARATOR).append(ref.getPartitionName())

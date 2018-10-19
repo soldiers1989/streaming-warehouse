@@ -22,7 +22,11 @@ public enum Operation {
     /**
      * An operation that resulted in an existing record being removed from or deleted in the source.
      */
-    DELETE("d");
+    DELETE("d"),
+    /**
+     * ALL operations include create, update, delete.
+     */
+    ALL("a");
     private final String code;
 
     private Operation(String code) {

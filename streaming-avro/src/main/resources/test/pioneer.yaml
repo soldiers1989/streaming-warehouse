@@ -1,0 +1,35 @@
+# Cluster
+cluster.name : test-connect-sink
+# Rabbit MQ
+rabbit.mq.host: 10.1.2.207
+rabbit.mq.port: 5672
+rabbit.mq.task.queue : streaming_hive_file_test
+
+# Avro Writer
+sink.writer.ttl.min: 5
+writer.max.msg.per.file : 1000000
+writer.base.path : /data/kafka-connect/sink-test/
+
+# Task Dispatch
+task.db.jdbc.url : jdbc:mysql://hadoop3:3306/streaming_hive
+task.db.user : hive2
+task.db.password : hive2stream
+task.storage.table.name : task_info_test
+
+# Partition Column Config
+table.partition.config.global : create,creat|date,time,createat,creatat,createdat
+
+# Kafka
+kafka.global :
+    bootstrap.servers : kafka1:9092,kafka2:9092:kafka3:9093
+    enable.auto.commit : false
+    auto.offset.reset : earliest
+# Connect
+connect.schema.url : http://application1:8081,http://application2:8081,http://application3:8081,http://application4:8081,http://application5:8081
+
+#DataBases
+databases:
+    clientrelationship :
+        hive.destination.database.name: clientrelationship
+        cores: 1
+        topics: [clientrelationship.t_associated_mobile,clientrelationship.t_client_associated_data,clientrelationship.t_client_relationship_detail,clientrelationship.t_client_relationship_summary,clientrelationship.t_client_relationship_summary_associateddatatype,clientrelationship.t_client_relationship_summary_relationshiptype]

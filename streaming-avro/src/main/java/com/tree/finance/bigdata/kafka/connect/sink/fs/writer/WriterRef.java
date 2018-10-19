@@ -28,7 +28,7 @@ public class WriterRef {
     private int bucketId;
     //task id
     private int taskId;
-    //operation: u, c, d
+    //operation: u, c, d, a
     private Operation op;
 
     private int version;

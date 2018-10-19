@@ -2,7 +2,7 @@ package com.tree.finance.bigdata.kafka.connect.sink.fs.writer;
 
 import com.alibaba.fastjson.JSON;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.config.DfsConfigHolder;
-import com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig;
+import com.tree.finance.bigdata.kafka.connect.sink.fs.config.PioneerConfig;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.avro.AvroWriterRef;
 import com.tree.finance.bigdata.task.FileSuffix;
 import com.tree.finance.bigdata.task.Operation;
@@ -28,11 +28,9 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Description:
  * Created in 2018/7/12 13:48
  */
-public class FileManager {
+public class TaskManager {
 
     private LinkedBlockingQueue<WriterRef> refs = new LinkedBlockingQueue<>(100);
-
-    private SinkConfig sinkConfig;
 
     private static String SEP = ",";
 
@@ -44,33 +42,40 @@ public class FileManager {
 
     private RabbitMqUtils rabbitMqUtils;
 
-    private final String queueNameUpdate;
+    private final String queueName;
+    private final String taskTableName;
+    private final Integer taskId;
 
-    private final String queueNameInsert;
-
-    private static final Logger LOG = LoggerFactory.getLogger(FileManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TaskManager.class);
 
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
     private ConnectionFactory connectionFactory;
 
-    public FileManager(SinkConfig sinkConfig) {
-        this.sinkConfig = sinkConfig;
-        this.queueNameUpdate = sinkConfig.getRabbitMqTaskQueue() + "_update";
-        this.queueNameInsert = sinkConfig.getRabbitMqTaskQueue() + "_insert";
-        this.rabbitMqUtils = RabbitMqUtils.getInstance(sinkConfig.getRabbitMqHost(), sinkConfig.getRabbitMqPort());
-        this.thread = new Thread(this::sendTask, "task-sender");
+    public TaskManager(int taskId) {
+        this.taskId = taskId;
+        this.queueName = PioneerConfig.getRabbitMqTaskQueue();
+        this.rabbitMqUtils = RabbitMqUtils.getInstance(PioneerConfig.getRabbitHost(), PioneerConfig.getRabbitPort());
+        this.thread = new Thread(this::sendTask, "Task-Generator");
+        this.taskTableName = PioneerConfig.getTaskTable();
     }
 
     public void init() {
-        this.connectionFactory = new ConnectionFactory.Builder().jdbcUrl(sinkConfig.getTaskDbUrl())
-                .user(sinkConfig.getTaskDbUser()).password(sinkConfig.getTaskDbPassword())
+        this.connectionFactory = new ConnectionFactory.Builder().jdbcUrl(PioneerConfig.getTaskDbUrl())
+                .user(PioneerConfig.getTaskDbUser()).password(PioneerConfig.getTaskDbPassword())
                 .acquireIncrement(1).maxPollSize(1).minPollSize(1).initialPoolSize(1).build();
         this.thread.start();
     }
 
     public void commit(WriterRef ref) {
-        refs.offer(ref);
+        while (!refs.offer(ref)) {
+            try {
+                LOG.warn("file queue is full !");
+                Thread.sleep(2000l);
+            }catch (InterruptedException e) {
+                //no opt
+            }
+        }
     }
 
     public void sendTask() {
@@ -98,7 +103,7 @@ public class FileManager {
                     FileSystem fs = FileSystem.get(DfsConfigHolder.getConf());
                     fs.rename(path, pathSent);
 
-                    String id = System.currentTimeMillis() + "-" + NetworkUtils.localIp + "-" + sinkConfig.getTaskId()
+                    String id = System.currentTimeMillis() + "-" + NetworkUtils.localIp + "-" + taskId
                             + "-" + random.nextInt(100);
 
                     TaskInfo taskInfo = new TaskInfo(id, ref.getDb(), ref.getTable(), ref.getPartitionVals()
@@ -108,7 +113,7 @@ public class FileManager {
                     try {
                         writeToDb(taskInfo);
                         sendWithRetry(msgBody, taskInfo.getOp());
-                    }catch (Exception e) {
+                    } catch (Exception e) {
                         LOG.error("failed to create file path: []", path, e);
                         fs.rename(pathSent, path);
                     }
@@ -124,20 +129,14 @@ public class FileManager {
             }
         }
         countDownLatch.countDown();
-        LOG.info("FileManager stopped");
+        LOG.info("stopped TaskManager");
     }
 
     private boolean sendWithRetry(String msgBody, Operation operation) {
         int retry = 0;
         while (retry++ < 3) {
             try {
-
-                if (operation.equals(Operation.CREATE)) {
-                    rabbitMqUtils.produce(queueNameInsert, msgBody);
-                } else {
-                    rabbitMqUtils.produce(queueNameUpdate, msgBody);
-                }
-
+                rabbitMqUtils.produce(queueName, msgBody);
                 return true;
             } catch (Exception e) {
                 LOG.error("error send task", e);
@@ -150,7 +149,7 @@ public class FileManager {
         try (Connection conn = this.connectionFactory.getConnection();
              Statement stmt = conn.createStatement()) {
             StringBuilder sb = new StringBuilder("insert into ")
-                    .append(sinkConfig.getTaskTable())
+                    .append(taskTableName)
                     .append("(id, db, table_name, partition_name, file_path, op, status, create_time)")
                     .append("values (")
                     .append(QUOTE).append(taskInfo.getId()).append(QUOTE).append(SEP)
@@ -167,10 +166,11 @@ public class FileManager {
     }
 
     public void close() {
+        LOG.info("stopping TaskManager...");
         while (!refs.isEmpty()) {
             try {
                 Thread.sleep(2000);
-                LOG.info("waiting FileManager to stop, remaining files in queue: {}", refs.size());
+                LOG.info("wait TaskManager to stop, remaining files in queue: {}", refs.size());
             } catch (InterruptedException e) {
                 LOG.error("interrupted", e);
             }
@@ -180,9 +180,10 @@ public class FileManager {
             countDownLatch.await();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            LOG.warn("interrupted");
         }
         this.connectionFactory.close();
+        this.rabbitMqUtils.close();
+        LOG.info("stopped TaskManager.");
     }
 
 }

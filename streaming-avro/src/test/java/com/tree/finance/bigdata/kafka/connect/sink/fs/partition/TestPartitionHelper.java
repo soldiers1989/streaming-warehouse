@@ -34,6 +34,6 @@ public class TestPartitionHelper {
     }
     @Test
     public void testPartitionHelper(){
-        new PartitionHelper(null).getYmdFromDateStr("2018-07-11T10:00:00+08:00", '-');
+        new PartitionHelper().getYmdFromDateStr("2018-07-11T10:00:00+08:00", '-');
     }
 }
