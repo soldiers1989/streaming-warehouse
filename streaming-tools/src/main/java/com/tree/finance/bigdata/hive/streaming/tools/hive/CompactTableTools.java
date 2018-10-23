@@ -7,6 +7,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.PartitionSpec;
+import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.hive.jdbc.HiveStatement;
 import org.slf4j.Logger;
@@ -49,11 +50,16 @@ public class CompactTableTools {
         HiveMetaStoreClient client = new HiveMetaStoreClient(ConfigHolder.getHiveConf());
         //compact all tables in a db if table not set
         if (tables == null || tables.length == 0) {
-            List<String> list = client.listTableNamesByFilter(db, null, Short.MAX_VALUE);
+            String filter = hive_metastoreConstants.HIVE_FILTER_FIELD_OWNER + " like 'hive'";
+            List<String> list = client.listTableNamesByFilter(db, filter, Short.MAX_VALUE);
             tables = list.toArray(new String[list.size()]);
         }
         LOG.info("gonna to compact {} tables", tables.length);
         for (String table : tables) {
+            try (Statement statement = connection.createStatement()) {
+                String sql = String.format("alter table %s.%s set tblproperties('compactor.mapreduce.map.memory.mb'='4096')", db, table);
+                statement.execute(sql);
+            }
             PartitionSpecProxy proxy = client.listPartitionSpecsByFilter(db, table, parFilter, Integer.MAX_VALUE);
             PartitionSpecProxy.PartitionIterator iterator = proxy.getPartitionIterator();
             while (iterator.hasNext()) {

@@ -117,7 +117,7 @@ public class DuplicationRemover {
                     System.out.println("finished load id to HBase");
                     System.out.println("start to validate repair");
                     validateRepair(table, duplicatePartitions);
-                    System.out.println("start to validate repair");
+                    System.out.println("finished validate repair");
                     dropTempTable(table);
                 }
 
@@ -319,7 +319,7 @@ public class DuplicationRemover {
                     .append(" STORED AS orc as select *, row_number()  over (partition by id order by ")
                     .append(updateCol)
                     .append(" desc) as rowno from ").append(db).append(".").append(tableStr)
-                    .append(" where ").append(buildParConditions(duplicatePartitions));
+                    .append(" where id is not null and ").append(buildParConditions(duplicatePartitions));
             LOG.info("going to create unique data, execute: {}", getDistinctData);
             System.out.println("start to extract unique data...");
             statement.execute(getDistinctData.toString());

@@ -87,7 +87,7 @@ public class BulkIdLoader {
         this.columnFamily = Bytes.toBytes(ConfigFactory.getHbaseColumnFamily());
         this.recordIdentifier = Bytes.toBytes(ConfigFactory.getHbaseRecordIdColumnIdentifier());
         this.updateTimeIdentifier = Bytes.toBytes(ConfigFactory.getHbaseUpdateTimeColumnIdentifier());
-
+        this.parFilter = parFilter;
     }
 
     public void load() throws Exception {
