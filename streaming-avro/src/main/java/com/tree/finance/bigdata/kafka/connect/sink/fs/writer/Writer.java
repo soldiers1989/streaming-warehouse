@@ -9,6 +9,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.List;
 
 import static com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig.Default.DFS_FILE_SEPARATOR;
@@ -66,6 +67,8 @@ public abstract class Writer<T> {
     protected Path makePath() {
         StringBuilder sb = new StringBuilder(basePath);
         sb.append(DFS_FILE_SEPARATOR)
+                //TODO not differentiate insert update delete
+                .append(ref.getOp())
                 .append(DFS_FILE_SEPARATOR).append(ref.getDb())
                 .append(DFS_FILE_SEPARATOR).append(ref.getTable())
                 .append(DFS_FILE_SEPARATOR).append(ref.getPartitionName())
@@ -86,6 +89,8 @@ public abstract class Writer<T> {
     }
 
     abstract public void closeInternal();
+
+    abstract public void flushInternal() throws IOException;
 
     public void close() throws Exception {
         while (!canClose()) {
@@ -110,5 +115,11 @@ public abstract class Writer<T> {
 
     public synchronized void unlock() {
         this.writing = false;
+    }
+
+    public synchronized void flush() throws IOException{
+        if (this.closed != true) {
+            flushInternal();
+        }
     }
 }

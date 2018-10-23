@@ -2,6 +2,8 @@ package com.tree.finance.bigdata.kafka.connect.sink.fs.writer;
 
 import com.tree.finance.bigdata.kafka.connect.sink.fs.config.SinkConfig;
 
+import java.io.IOException;
+
 /**
  * @Author ZhengShengJun
  * @Description
@@ -17,4 +19,6 @@ public abstract class WriterFactory {
     protected abstract Writer create(WriterRef writerRef) throws Exception;
 
     public abstract void close();
+
+    public abstract void flushAll() throws IOException;
 }

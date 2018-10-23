@@ -54,7 +54,7 @@ public class AvroSchemaClient {
 
         org.apache.kafka.connect.data.Schema afterSchema;
         if (op.equals(Operation.DELETE)) {
-            //delete only have delete value
+            //delete only have before value
             afterSchema = sinkRecord.valueSchema().schema().field(FIELD_BEFORE).schema();
         } else {
             afterSchema = sinkRecord.valueSchema().schema().field(FIELD_AFTER).schema();

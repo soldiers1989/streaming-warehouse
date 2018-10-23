@@ -8,10 +8,7 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static com.tree.finance.bigdata.kafka.connect.sink.fs.config.ConfKeys.*;
 
@@ -29,6 +26,7 @@ public class PioneerConfig {
     static String DFS_FILE_SEPARATOR = "/";
     static int DEFAULT_DB_CORES = 1;
     static int DEFAULT_SHUTDOWN_PORT = 8888;
+    static String CONSUMER_GROUP_SUFFIX = "_avro";
 
     public static Map init() {
         try {
@@ -70,9 +68,9 @@ public class PioneerConfig {
         String clusterId = conf.get(CLUSTER_NAME).toString();
         Map dbConf = ((Map) databasesMap.get(db));
         if (dbConf.containsKey(DB_KAFKA_CLIENT)) {
-            return clusterId + "_" + dbConf.get(DB_KAFKA_CLIENT);
+            return dbConf.get(DB_KAFKA_CLIENT).toString();
         } else {
-            return clusterId + "_" + db;
+            return clusterId + "_" + db + CONSUMER_GROUP_SUFFIX;
         }
     }
 
@@ -102,6 +100,14 @@ public class PioneerConfig {
         } else {
             return DEFAULT_DB_CORES;
         }
+    }
+
+    public static int getTotalCores() {
+        int totalCores = 0;
+        for (String db : (Set<String>) databasesMap.keySet()) {
+            totalCores += getDbCores(db);
+        }
+        return totalCores;
     }
 
     public static String getRabbitHost() {

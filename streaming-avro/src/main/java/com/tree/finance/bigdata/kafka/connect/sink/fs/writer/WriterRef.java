@@ -103,4 +103,5 @@ public class WriterRef {
     public int hashCode() {
         return Objects.hash(db, table, partitionName, bucketId, taskId, op, version);
     }
+
 }

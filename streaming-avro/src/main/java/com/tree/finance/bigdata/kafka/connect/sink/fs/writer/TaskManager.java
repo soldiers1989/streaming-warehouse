@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -30,6 +31,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class TaskManager {
 
+    private final String queueNameUpdate;
+    private final String queueNameInsert;
     private LinkedBlockingQueue<WriterRef> refs = new LinkedBlockingQueue<>(100);
 
     private static String SEP = ",";
@@ -55,6 +58,10 @@ public class TaskManager {
     public TaskManager(int taskId) {
         this.taskId = taskId;
         this.queueName = PioneerConfig.getRabbitMqTaskQueue();
+        //TODO not differentiate insert update delete
+        this.queueNameUpdate = queueName + "_update";
+        this.queueNameInsert = queueName + "_insert";
+
         this.rabbitMqUtils = RabbitMqUtils.getInstance(PioneerConfig.getRabbitHost(), PioneerConfig.getRabbitPort());
         this.thread = new Thread(this::sendTask, "Task-Generator");
         this.taskTableName = PioneerConfig.getTaskTable();
@@ -103,8 +110,7 @@ public class TaskManager {
                     FileSystem fs = FileSystem.get(DfsConfigHolder.getConf());
                     fs.rename(path, pathSent);
 
-                    String id = System.currentTimeMillis() + "-" + NetworkUtils.localIp + "-" + taskId
-                            + "-" + random.nextInt(100);
+                    String id = NetworkUtils.localIp + UUID.randomUUID().getLeastSignificantBits();
 
                     TaskInfo taskInfo = new TaskInfo(id, ref.getDb(), ref.getTable(), ref.getPartitionVals()
                             , ref.getPartitionName(), pathSent.toString(), ref.getOp());
@@ -136,7 +142,12 @@ public class TaskManager {
         int retry = 0;
         while (retry++ < 3) {
             try {
-                rabbitMqUtils.produce(queueName, msgBody);
+                //TODO not differentiate insert update delete;
+                if (operation.equals(Operation.CREATE)) {
+                    rabbitMqUtils.produce(queueNameInsert, msgBody);
+                } else {
+                    rabbitMqUtils.produce(queueNameUpdate, msgBody);
+                }
                 return true;
             } catch (Exception e) {
                 LOG.error("error send task", e);
@@ -182,7 +193,6 @@ public class TaskManager {
             Thread.currentThread().interrupt();
         }
         this.connectionFactory.close();
-        this.rabbitMqUtils.close();
         LOG.info("stopped TaskManager.");
     }
 

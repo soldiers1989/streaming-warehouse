@@ -11,6 +11,7 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
 
@@ -79,6 +80,11 @@ public class AvroWriter extends Writer<GenericData.Record> {
             //todo alarm
             LOG.error("error close writer", e);
         }
+    }
+
+    @Override
+    public void flushInternal() throws IOException {
+        this.dataFileWriter.flush();
     }
 
 }

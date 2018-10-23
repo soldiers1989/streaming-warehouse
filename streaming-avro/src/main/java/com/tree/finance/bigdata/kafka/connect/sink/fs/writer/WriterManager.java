@@ -5,6 +5,7 @@ import com.tree.finance.bigdata.kafka.connect.sink.fs.writer.avro.AvroWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -107,6 +108,13 @@ public class WriterManager extends WriterFactory {
         writerMap.forEach(this::closeImmedidately);
         LOG.info("All writing files closed");
         this.taskManager.close();
+    }
+
+    @Override
+    public void flushAll() throws IOException {
+        for (Writer writer : writerMap.values()){
+            writer.flush();
+        }
     }
 
     private void startCheck() {

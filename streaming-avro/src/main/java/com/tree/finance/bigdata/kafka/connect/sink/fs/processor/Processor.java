@@ -48,9 +48,11 @@ public class Processor {
     private KafkaConsumer<byte[], byte[]> consumer;
     private Thread consumerThread;
     private volatile boolean stop;
-    private CountDownLatch latch = new CountDownLatch(1);
+    private CountDownLatch totalProcessors;
+    private CountDownLatch self = new CountDownLatch(1);
 
-    public Processor(String sourceDb, int processorId) {
+    public Processor(String sourceDb, int processorId, CountDownLatch totalProcessors) {
+        this.totalProcessors = totalProcessors;
         this.partitionHelper = new PartitionHelper();
         this.config = config;
         this.writerFactory = new WriterManager(sourceDb, processorId);
@@ -93,15 +95,20 @@ public class Processor {
                             timestamp,
                             msg.timestampType()));
                 }
+                consumer.commitSync();
             } catch (Throwable t) {
                 LOG.error("error", t);
             }
         }
+        self.countDown();
+        totalProcessors.countDown();
         try {
-            consumer.close();
-        } catch (Exception e) {
-            LOG.error("error closing consumer: {}", e);
+            totalProcessors.await();
+        }catch (InterruptedException e) {
+            LOG.warn("error await other processors to stop");
         }
+        //consumer can't be closed by other thread, and close consumer together to avoid consumer rebalance
+        cleanResource();
         LOG.info("processor consumer thread stopped.");
     }
 
@@ -161,14 +168,22 @@ public class Processor {
 
         //not differentiate insert, update, delete
         return new AvroWriterRef(targetDB, tableName, partitionVals, 1, processorId,
-                Operation.ALL, AvroSchemaClient.getSchema(versionedTable, sinkRecord), version);
+                Operation.forCode(op), AvroSchemaClient.getSchema(versionedTable, sinkRecord), version);
     }
 
     public void stop() {
         LOG.info("stopping processor: {}-{}", targetDB, processorId);
         this.stop = true;
-        latch.countDown();
+        try {
+            this.self.await();
+        }catch (InterruptedException e) {
+            LOG.error("interupted awat count down");
+        }
         this.writerFactory.close();
         LOG.info("stopped processor: {}-{}", targetDB, processorId);
+    }
+
+    private void cleanResource(){
+        this.consumer.close();
     }
 }

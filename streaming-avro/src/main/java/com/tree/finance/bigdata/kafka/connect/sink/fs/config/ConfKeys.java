@@ -24,7 +24,7 @@ public interface ConfKeys {
     String DB_HIVE_TARGET = "hive.destination.database.name";
     String DB_CORES = "cores";
     String DB_TOIPCS = "topics";
-    String DB_KAFKA_CLIENT = "kafka.client.name";
+    String DB_KAFKA_CLIENT = "kafka.consumer.group.name";
 
     String KAFKA_CONF_GLOBAL = "kafka.global";
     String CONNECT_SCHEMA_URL_KEY = "connect.schema.url";
