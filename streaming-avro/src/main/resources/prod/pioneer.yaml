@@ -2,7 +2,7 @@
 cluster.name: connect-sink
 
 # Rabbit MQ
-rabbit.mq.host: rabbit.mq.host
+rabbit.mq.host: 10.1.2.207
 rabbit.mq.port: 5672
 rabbit.mq.task.queue: streaming_warehouse_file_queue
 
@@ -15,6 +15,7 @@ writer.base.path: /data/kafka-connect/sink/
 task.db.jdbc.url: jdbc:mysql://hadoop3:3306/streaming_hive
 task.db.user: hive2
 task.db.password: hive2stream
+task.storage.table.name: task_info
 
 # Partition Column Config
 table.partition.config.global: create,creat|date,time,createat,creatat,createdat
@@ -46,14 +47,14 @@ databases:
     topics: [bill.bak_t_order_original,bill.db_gdr,bill.dts_increment_trx,bill.jc_customer_bank_summary_billscore,bill.jc_customer_ext_history,bill.t_analysis,bill.t_bank_bill_behavior,bill.t_bank_channel_mapping,bill.t_bank_channel_type,bill.t_bank_limi,bill.t_bank_limit_tantile,bill.t_bank_limit_tantile_max,bill.t_bank_mail_server_ip,bill.t_bank_transaction_mapping,bill.t_bank_transaction_type,bill.t_bill,bill.t_bill_check_result,bill.t_bill_detail,bill.t_bill_detail_type,bill.t_bill_extrainfo,bill.t_bill_import_log,bill.t_bill_installment,bill.t_bill_installment_regex,bill.t_bill_installment_summary,bill.t_bill_installment_type,bill.t_bill_line,bill.t_city_list,bill.t_customer,bill.t_customer_bank,bill.t_customer_bank_summary,bill.t_customer_basis_limit,bill.t_customer_bill,bill.t_customer_history,bill.t_customer_history_analysis,bill.t_customer_history_kaniu,bill.t_customer_limi,bill.t_customer_limit_analysis,bill.t_customer_limit_tantile,bill.t_email,bill.t_exchange_rate,bill.t_log,bill.t_regex,bill.t_summary,bill.t_tantile,bill.t_tantile_max,bill.t_type,bill.t_user_bank,bill.t_user_bank_analysis,bill.t_user_bank_extsum,bill.t_user_bank_kaniu,bill.t_user_bank_summary,bill.t_user_bank_summary_analysis,bill.t_user_bankscore,bill.t_user_bill,bill.t_user_bill_analysis,bill.t_user_bill_fake_summary,bill.t_user_bill_fake_summary_analysis,bill.t_user_customer,bill.t_user_customer_analysis,bill.t_user_email,bill.t_user_email_backup]
 
 #2
-  clientrelationship:
-    hive.destination.database.name: clientrelationship
-    topics: [clientrelationship.t_associated_mobile,clientrelationship.t_client_associated_data,clientrelationship.t_client_relationship_detail,clientrelationship.t_client_relationship_summary,clientrelationship.t_client_relationship_summary_associateddatatype,clientrelationship.t_client_relationship_summary_relationshiptype]
+  #clientrelationship:
+    #hive.destination.database.name: clientrelationship
+    #topics: [clientrelationship.t_associated_mobile,clientrelationship.t_client_associated_data,clientrelationship.t_client_relationship_detail,clientrelationship.t_client_relationship_summary,clientrelationship.t_client_relationship_summary_associateddatatype,clientrelationship.t_client_relationship_summary_relationshiptype]
 
   collection:
     topics: [collection.coll_account_age,collection.coll_account_age_stage,collection.coll_case_lifecycle,collection.coll_collection_overdue_sms,collection.coll_delegate_config,collection.coll_delegate_feerate_discount,collection.coll_delegate_month_report,collection.coll_derate_config,collection.coll_derate_month_report,collection.coll_file_history,collection.coll_law_firm,collection.coll_overdue_sms,collection.coll_repayment_log,collection.coll_sri,collection.t_audit_cc_task,collection.t_collection_auto_task,collection.t_collection_black_sim,collection.t_collection_case,collection.t_collection_contacts,collection.t_collection_delegate_billing,collection.t_collection_delegate_channel,collection.t_collection_delegate_detail,collection.t_collection_delegate_package,collection.t_collection_delegate_snapshot,collection.t_collection_find_info,collection.t_collection_idcard_approve,collection.t_collection_ivr_task,collection.t_collection_monthly_report,collection.t_collection_openingcase_snapshot,collection.t_collection_recent_records,collection.t_collection_remark,collection.t_collection_remind,collection.t_collection_report_repayment,collection.t_collection_settlement,collection.t_collection_small_derate,collection.t_delegate_fee_rate,collection.t_enterprise_taobao_record,collection.t_simpool_sms,collection.t_sys_audit_config]
 
-    #common_service:
+  #common_service:
     #topics:
 
   credit_audit:
