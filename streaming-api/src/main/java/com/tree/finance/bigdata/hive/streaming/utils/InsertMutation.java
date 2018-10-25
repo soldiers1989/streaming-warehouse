@@ -40,6 +40,12 @@ public class InsertMutation extends Mutation {
         this.RECID_PREFIX = transactionId + "_" + BUCKET_ID + "_";
     }
 
+    public void beginTransaction(Schema schema, HiveConf conf, Boolean checkExist) throws Exception{
+        super.beginTransaction(schema, conf);
+        this.RECID_PREFIX = transactionId + "_" + BUCKET_ID + "_";
+        this.checkExist = checkExist;
+    }
+
     public void insert(GenericData.Record record) throws Exception {
 
         Long recordUpdateTime = RecordUtils.getFieldAsTimeMillis(this.updateCol, record);
@@ -83,7 +89,9 @@ public class InsertMutation extends Mutation {
 
         if (!checkExist) {  //records already write to file before, when we not check record exist in HBase
             long mutateNum = super.commitTransaction();
+            long putStart = System.currentTimeMillis();
             hbaseUtils.batchPut(puts);
+            LOG.info("HBase batch put cost: {}ms", System.currentTimeMillis() - putStart);
             return mutateNum;
         } else {
             if (toInsert.isEmpty()){
@@ -97,6 +105,7 @@ public class InsertMutation extends Mutation {
                         results.length);
                 throw new RuntimeException("unexpected HBase result size");
             }
+            long writeStart = System.currentTimeMillis();
             List<Put> neededPuts = new ArrayList<>();
             for (int i = 0; i < results.length; i++) {
                 Result result = results[i];
@@ -108,8 +117,11 @@ public class InsertMutation extends Mutation {
                     neededPuts.add(puts.get(i));
                 }
             }
+            LOG.info("write records cost: {}", System.currentTimeMillis() - writeStart);
             super.commitTransaction();
+            long putStart = System.currentTimeMillis();
             hbaseUtils.batchPut(neededPuts);
+            LOG.info("HBase batch put cost: {}ms", System.currentTimeMillis() - putStart);
         }
         return mutateRecords;
     }

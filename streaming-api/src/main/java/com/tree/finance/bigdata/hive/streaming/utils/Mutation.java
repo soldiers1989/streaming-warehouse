@@ -110,7 +110,7 @@ public abstract class Mutation {
 
         if (null != latestParUpdateTime && dynamicConfig != null) {
             try {
-                if (latestParUpdateTime > latestTblUpdateTime) {
+                if (null == latestTblUpdateTime || latestParUpdateTime > latestTblUpdateTime) {
                     latestTblUpdateTime = latestParUpdateTime;
                 }
                 dynamicConfig.refreshStreamTime(db, table, partition, Long.toString(latestParUpdateTime), Long.toString(latestTblUpdateTime));
@@ -194,6 +194,7 @@ public abstract class Mutation {
     }
 
     protected void beginTransaction(Schema schema, HiveConf conf) throws Exception {
+
         this.checkExist = true;
 
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);
