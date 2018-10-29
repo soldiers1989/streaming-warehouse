@@ -38,3 +38,8 @@ cmd="java ${JVM_OPTS} ${GC_LOG_OPTS} -Dpioneer.conf.file=$conf_dir/pioneer.yaml 
 
 #exec ${cmd}
 nohup ${cmd} 1>&2>> ${log_dir}/std.out &
+
+pid=`ps -ef | grep com.tree.finance.bigdata.kafka.connect.sink.fs.StreamingPioneer |grep -v "grep" |awk '{print($2)}'`
+if [ "" != ${pid}"" ]; then
+  echo "$pid" >> ${log_dir}/pid.history
+fi

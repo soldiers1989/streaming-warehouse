@@ -58,9 +58,9 @@ public class TaskManager {
     public TaskManager(int taskId) {
         this.taskId = taskId;
         this.queueName = PioneerConfig.getRabbitMqTaskQueue();
-        //TODO not differentiate insert update delete
-        this.queueNameUpdate = queueName + "_update";
-        this.queueNameInsert = queueName + "_insert";
+        //not differentiate insert update delete
+        this.queueNameUpdate = queueName;
+        this.queueNameInsert = queueName;
 
         this.rabbitMqUtils = RabbitMqUtils.getInstance(PioneerConfig.getRabbitHost(), PioneerConfig.getRabbitPort());
         this.thread = new Thread(this::sendTask, "Task-Generator");
@@ -74,15 +74,8 @@ public class TaskManager {
         this.thread.start();
     }
 
-    public void commit(WriterRef ref) {
-        while (!refs.offer(ref)) {
-            try {
-                LOG.warn("file queue is full !");
-                Thread.sleep(2000l);
-            }catch (InterruptedException e) {
-                //no opt
-            }
-        }
+    public void commit(WriterRef ref) throws InterruptedException {
+        refs.put(ref);
     }
 
     public void sendTask() {
@@ -142,12 +135,13 @@ public class TaskManager {
         int retry = 0;
         while (retry++ < 3) {
             try {
-                //TODO not differentiate insert update delete;
-                if (operation.equals(Operation.CREATE)) {
+                /*if (operation.equals(Operation.CREATE)) {
                     rabbitMqUtils.produce(queueNameInsert, msgBody);
                 } else {
                     rabbitMqUtils.produce(queueNameUpdate, msgBody);
-                }
+                }*/
+                //not differentiate insert update delete;
+                rabbitMqUtils.produce(queueName, msgBody);
                 return true;
             } catch (Exception e) {
                 LOG.error("error send task", e);

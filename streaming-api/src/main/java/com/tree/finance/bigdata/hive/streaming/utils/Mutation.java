@@ -193,7 +193,7 @@ public abstract class Mutation {
         }
     }
 
-    protected void beginTransaction(Schema schema, HiveConf conf) throws Exception {
+    public void beginTransaction(Schema schema, HiveConf conf) throws Exception {
 
         this.checkExist = true;
 

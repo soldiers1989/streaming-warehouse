@@ -168,7 +168,7 @@ public class Processor {
 
         //not differentiate insert, update, delete
         return new AvroWriterRef(targetDB, tableName, partitionVals, 1, processorId,
-                Operation.forCode(op), AvroSchemaClient.getSchema(versionedTable, sinkRecord), version);
+                Operation.ALL, AvroSchemaClient.getSchema(versionedTable, sinkRecord), version);
     }
 
     public void stop() {

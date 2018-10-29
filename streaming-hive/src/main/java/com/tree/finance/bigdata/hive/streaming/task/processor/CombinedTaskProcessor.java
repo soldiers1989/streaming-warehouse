@@ -4,9 +4,8 @@ import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
-import com.tree.finance.bigdata.hive.streaming.task.consumer.ConsumedTask;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
-import com.tree.finance.bigdata.hive.streaming.utils.InsertMutation;
+import com.tree.finance.bigdata.hive.streaming.utils.CombinedMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
 import com.tree.finance.bigdata.task.TaskInfo;
 import com.tree.finance.bigdata.task.TaskStatus;
@@ -33,13 +32,7 @@ import java.util.concurrent.TimeUnit;
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.SPACE;
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.SQL_VALUE_QUOTE;
 
-/**
- * @author Zhengsj
- * Description:
- * Created in 2018/7/9 20:05
- */
-public class InsertTaskProcessor extends TaskProcessor implements Runnable {
-
+public class CombinedTaskProcessor extends TaskProcessor{
     private static Logger LOG = LoggerFactory.getLogger(InsertTaskProcessor.class);
 
     private LinkedBlockingQueue<RabbitMqTask> taskQueue;
@@ -50,27 +43,24 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
 
     private int id;
 
-    public InsertTaskProcessor(AppConfig config, ConnectionFactory factory, int id) {
+    public CombinedTaskProcessor(AppConfig config, ConnectionFactory factory, int id) {
         super(config, factory);
         this.id = id;
         this.taskQueue = new LinkedBlockingQueue<>(config.getFileQueueSize());
-        this.thread = new Thread(this, "Insert-Processor-" + id);
+        this.thread = new Thread(this::run, "Combine-Processor-" + id);
     }
 
     public void init() {
         thread.start();
     }
 
-    @Override
-
     public void run() {
         while (!stop || !taskQueue.isEmpty()) {
             try {
                 RabbitMqTask task = taskQueue.take();
-                if (handleToEnd(task)) {    //if successfuly handled current task, try to handle as more as possible
-                    List<TaskInfo> greedyTasks;
-                    while (!CollectionUtils.isEmpty(greedyTasks = getSameTask(task.getTaskInfo()))) {
-                        handleBatch(greedyTasks);
+                if (handleWithMqTask(task)) {    //if successfuly handled current task, try to handle as more as possible
+                    while (!CollectionUtils.isEmpty(handleGreedyDbTasks(task))) {
+                        LOG.info("handled greedy tasks successfully, going to handle another greedy batch");
                     }
                 }
             } catch (InterruptedException e) {
@@ -82,16 +72,25 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
         LOG.info("{}, stopped", Thread.currentThread().getName());
     }
 
-    private void handleBatch(List<TaskInfo> batchTasks) {
+    public List<TaskInfo> handleGreedyDbTasks(RabbitMqTask rabbitMqTask) {
+        List<TaskInfo> greedyTasks = getSameTask(rabbitMqTask.getTaskInfo());
+        return handleDbBatchTask(greedyTasks);
+    }
 
-        InsertMutation mutationUtils = new InsertMutation(batchTasks.get(0).getDb(),
+    private List<TaskInfo> handleDbBatchTask(List<TaskInfo> batchTasks) {
+
+        if (CollectionUtils.isEmpty(batchTasks)) {
+            return null;
+        }
+
+        CombinedMutation mutationUtils = new CombinedMutation(batchTasks.get(0).getDb(),
                 batchTasks.get(0).getTbl(), batchTasks.get(0).getPartitionName(),
                 batchTasks.get(0).getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
         TaskInfo processing;
         try {
             if (CollectionUtils.isEmpty(batchTasks)) {
                 LOG.info("Batch task is empty");
-                return;
+                return null;
             }
             long batchStart = System.currentTimeMillis();
             LOG.info("going to process {} more tasks", batchTasks.size());
@@ -110,6 +109,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 LOG.warn("ack success failed, will not affect repair accuracy", e);
             }
             MetricReporter.insertFiles(batchTasks.size());
+            return batchTasks;
         } catch (TransactionException e) {
             try {
                 if (e.getCause() instanceof LockException) {
@@ -128,15 +128,15 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 LOG.error("error abort txn", e);
             }
         }
+        return null;
     }
 
     /**
      * @param task
      * @return true: successfully handled mq task and more tasks
      */
-    private boolean handleToEnd(RabbitMqTask task) {
-
-        InsertMutation mutationUtils = new InsertMutation(task.getTaskInfo().getDb(),
+    private boolean handleWithMqTask(RabbitMqTask task) {
+        CombinedMutation mutationUtils = new CombinedMutation(task.getTaskInfo().getDb(),
                 task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
                 task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
         try {
@@ -157,18 +157,16 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                     LOG.info("additional task success in batch: {}, cost: {}", sameTask.getFilePath(), System.currentTimeMillis() - start);
                 }
             }
-
             mutationUtils.commitTransaction();
             try {
                 mqTaskStatusListener.onTaskSuccess(task);
-                dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
+                moreTasks.add(task.getTaskInfo());
                 dbTaskStatusListener.onTaskSuccess(moreTasks);
             } catch (Exception e) {
                 // ignore ack failure. Cause once success, source file is renamed, and will not be retried
                 LOG.warn("ack success failed, will not affect repair accuracy", e);
             }
             MetricReporter.insertFiles(moreTasks.size() + 1);
-
             return true;
         } catch (TransactionException e) {
             try {
@@ -197,107 +195,13 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
         return false;
     }
 
-    private void handleMqTask(RabbitMqTask task) {
-        InsertMutation mutationUtils = new InsertMutation(task.getTaskInfo().getDb(),
-                task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
-                task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
-        try {
-            long start = System.currentTimeMillis();
-            LOG.info("single task start: {}", task.getTaskInfo().getFilePath());
-            handleTask(mutationUtils, task.getTaskInfo());
-            LOG.info("single task success: {}, cost: {}ms", task.getTaskInfo().getFilePath(), System.currentTimeMillis() - start);
-            mutationUtils.commitTransaction();
-            try {
-                mqTaskStatusListener.onTaskSuccess(task);
-                dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
-            } catch (Exception e) {
-                // ignore ack failure. Cause once success, source file is renamed, and will not be retried
-                LOG.warn("ack success failed, will not affect repair accuracy", e);
-            }
-            handleMoreTask(task.getTaskInfo());
-        } catch (TransactionException e) {
-            try {
-                if (e.getCause() instanceof LockException) {
-                    LOG.warn("failed to lock for mq task, txnId: {}, file: {}", mutationUtils.getTransactionId(),
-                            task.getTaskInfo().getFilePath());
-                } else {
-                    LOG.error("txn exception", e);
-                }
-                mutationUtils.abortTxn();
-            } catch (Exception ex) {
-                LOG.error("error handle transaction exception", ex);
-            } finally {
-                mqTaskStatusListener.onTaskError(task);
-            }
-        } catch (Throwable t) {
-            LOG.error("file task failed: {}", task.getTaskInfo(), t);
-            try {
-                mutationUtils.abortTxn();
-                mqTaskStatusListener.onTaskError(task);
-                dbTaskStatusListener.onTaskError(task.getTaskInfo());
-            } catch (Throwable e) {
-                LOG.error("error abort txn", e);
-            }
-        }
-    }
-
-    protected void handleMoreTask(TaskInfo task) {
-        List<TaskInfo> moreTasks;
-        int greedyCount = config.getGreedyProcessBatchLimit();
-        TaskInfo processing = null;
-        while (!(moreTasks = getSameTask(task)).isEmpty()) {
-            InsertMutation mutationUtils = new InsertMutation(task.getDb(),
-                    task.getTbl(), task.getPartitionName(),
-                    task.getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
-            try {
-                LOG.info("going to process {} more tasks", moreTasks.size());
-                List<TaskInfo> processed = new ArrayList<>();
-
-                for (TaskInfo sameTask : moreTasks) {
-                    processing = sameTask;
-                    if (processed.size() >= greedyCount) {
-                        mutationUtils.commitTransaction();
-                        LOG.info("processed {} additional tasks, committed as a batch", processed.size());
-                        dbTaskStatusListener.onTaskSuccess(processed);
-                        mutationUtils = new InsertMutation(task.getDb(),
-                                task.getTbl(), task.getPartitionName(),
-                                task.getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
-                        processed.clear();
-                    }
-                    handleTask(mutationUtils, sameTask);
-                    LOG.info("additional task success in batch: {}", sameTask.getFilePath());
-                    processed.add(sameTask);
-                }
-                if (!processed.isEmpty()) {
-                    mutationUtils.commitTransaction();
-                    LOG.info("processed {} tasks, committed as a batch", processed.size());
-                    dbTaskStatusListener.onTaskSuccess(processed);
-                }
-                LOG.info("finished processing {} more tasks", moreTasks.size());
-            } catch (TransactionException e) {
-                if (e.getCause() instanceof LockException) {
-                    LOG.warn("failed to lock for more task, txnId: {}, file: {}", mutationUtils.getTransactionId(), task.getFilePath());
-                    // not update info in database
-                } else {
-                    LOG.error("caught txn exception", e);
-                    // not update info in database
-                }
-                mutationUtils.abortTxn();
-            } catch (Throwable t) { //if other error try batch by single
-                LOG.error("file task failed " + processing.getFilePath(), t);
-                mutationUtils.abortTxn();
-                dbTaskStatusListener.onTaskError(processing);
-            }
-        }
-    }
-
     /**
      * @param mutationUtils
      * @param task
      * @return success: true
      * @throws Exception
      */
-    private boolean handleTask(InsertMutation mutationUtils, TaskInfo task) throws Exception {
+    private boolean handleTask(CombinedMutation mutationUtils, TaskInfo task) throws Exception {
         FileSystem fileSystem = FileSystem.get(new Configuration());
         Path path = new Path(task.getFilePath());
         if (!fileSystem.exists(path)) {
@@ -313,7 +217,7 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
             long insertStart = System.currentTimeMillis();
             while (reader.hasNext()) {
                 GenericData.Record record = reader.next();
-                mutationUtils.insert(record);
+                mutationUtils.mutate(record);
             }
             LOG.info("insert task in batch cost: {}", System.currentTimeMillis() - insertStart);
         }
@@ -329,7 +233,6 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
                 .append("where db=").append(SQL_VALUE_QUOTE).append(taskInfo.getDb()).append(SQL_VALUE_QUOTE).append(" and ")
                 .append("table_name =").append(SQL_VALUE_QUOTE).append(taskInfo.getTbl()).append(SQL_VALUE_QUOTE).append(" and ")
                 .append("partition_name =").append(SQL_VALUE_QUOTE).append(taskInfo.getPartitionName()).append(SQL_VALUE_QUOTE).append("and ")
-                .append("op =").append(SQL_VALUE_QUOTE).append(taskInfo.getOp().code()).append(SQL_VALUE_QUOTE).append(" and ")
                 .append(" status=").append(SQL_VALUE_QUOTE).append(TaskStatus.NEW).append(SQL_VALUE_QUOTE).append(" and ")
                 .append(" id !=").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE).append(" and ")
                 .append(" file_path !=").append(SQL_VALUE_QUOTE).append(taskInfo.getFilePath()).append(SQL_VALUE_QUOTE)
@@ -367,12 +270,12 @@ public class InsertTaskProcessor extends TaskProcessor implements Runnable {
         this.thread.interrupt();
         while (taskQueue.size() != 0) {
             try {
-                LOG.info("stopping Insert-Processor-{}, remaining {} tasks...", id, taskQueue.size());
+                LOG.info("stopping Combine-Processor-{}, remaining {} tasks...", id, taskQueue.size());
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
                 //no pots
             }
         }
-        LOG.info("stopped Insert-Processor-{}", id);
+        LOG.info("stopped Combine-Processor-{}", id);
     }
 }

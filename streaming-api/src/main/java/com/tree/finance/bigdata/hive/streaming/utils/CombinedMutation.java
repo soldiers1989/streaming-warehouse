@@ -90,6 +90,12 @@ public class CombinedMutation extends Mutation{
                 if (recordIdentifier == null) {
                     continue;
                 }
+
+                if (!bizIdToGeneric.get(bizId).get(FIELD_OP).equals(Operation.CREATE)) {
+                    //add update or delete recordIdentifier to map, will be used in AvroObjectInspector for update and delete
+                    bizToRecIdMap.put(bizId, recordIdentifier);
+                }
+
                 recordIdsorted.add(recordIdentifier);
                 recordIdToBuziId.put(recordIdentifier, bizId);
             }  catch (Exception e) {
@@ -129,8 +135,6 @@ public class CombinedMutation extends Mutation{
                 String[] recordIds = RecordUtils.splitRecordId(recordId, '_');
                 recordIdentifier = new RecordIdentifier(Integer.valueOf(recordIds[0]),
                         Integer.valueOf(recordIds[1]), Integer.valueOf(recordIds[2]));
-                //add update or delete recordIdentifier to map, will be used in AvroObjectInspector
-                bizToRecIdMap.put(bizId, recordIdentifier);
             }
         }
         return recordIdentifier;
@@ -156,38 +160,44 @@ public class CombinedMutation extends Mutation{
 
         List<Put> puts = new ArrayList<>();
         for (RecordIdentifier recordIdentifier : recordIdsorted) {
-            GenericData.Record record = bizIdToGeneric.get(recordIdToBuziId.get(recordIdentifier));
+            try {
+                GenericData.Record record = bizIdToGeneric.get(recordIdToBuziId.get(recordIdentifier));
 
-            if (Operation.UPDATE.code().equals(record.get(FIELD_OP).toString())) {
-                //if recordId's transactionId the same as current transaction, means we treat update as insert
-                if (recordIdentifier.getTransactionId() == transactionId) {
+                if (Operation.UPDATE.code().equals(record.get(FIELD_OP).toString())) {
+                    //if recordId's transactionId the same as current transaction, means we treat update as insert
+                    if (recordIdentifier.getTransactionId() == transactionId) {
+                        mutateCoordinator.insert(partitions, record);
+                    } else {
+                        mutateCoordinator.update(partitions, record);
+                    }
+                } else if (Operation.CREATE.code().equals(record.get(FIELD_OP).toString())) {
                     mutateCoordinator.insert(partitions, record);
+                } else if (Operation.DELETE.code().equals(record.get(FIELD_OP).toString())) {  //have filtered non exist delete already, and safe to multi delete
+                    mutateCoordinator.delete(partitions, record);
                 } else {
-                    mutateCoordinator.update(partitions, record);
+                    LOG.error("unsupported operation: {}", record.get(FIELD_OP));
+                    throw new RuntimeException("unsupported operation: " + FIELD_OP);
                 }
-            } else if (Operation.CREATE.code().equals(record.get(FIELD_OP).toString())) {
-                mutateCoordinator.insert(partitions, record);
-            } else if (Operation.DELETE.code().equals(record.get(FIELD_OP).toString())) {  //have filtered non exist delete already, and safe to multi delete
-                mutateCoordinator.delete(partitions, record);
-            } else {
-                LOG.error("unsupported operation: {}", record.get(FIELD_OP));
-                throw new RuntimeException("unsupported operation: " + FIELD_OP);
-            }
 
-            //update stream update time
-            Long recordUpdateTime = bizIdToUpdateTime.get(recordIdToBuziId.get(recordIdentifier));
-            if (null == latestParUpdateTime || this.latestParUpdateTime < recordUpdateTime) {
-                this.latestParUpdateTime = recordUpdateTime;
-            }
+                //update stream update time
+                Long recordUpdateTime = bizIdToUpdateTime.get(recordIdToBuziId.get(recordIdentifier));
+                if (null == latestParUpdateTime || this.latestParUpdateTime < recordUpdateTime) {
+                    this.latestParUpdateTime = recordUpdateTime;
+                }
 
-            Put put = new Put(Bytes.toBytes(recordIdToBuziId.get(recordIdentifier)));
-            //need to update recordId, for it not exist before
-            if (transactionId == recordIdentifier.getTransactionId()) {
-                String recId = recordIdentifier.getTransactionId() + "_" + BUCKET_ID + "_" + recordIdentifier.getRowId();
-                put.add(columnFamily, recordIdColIdentifier, Bytes.toBytes(recId));
+                Put put = new Put(Bytes.toBytes(recordIdToBuziId.get(recordIdentifier)));
+                //need to update recordId, for it not exist before
+                if (transactionId == recordIdentifier.getTransactionId()) {
+                    String recId = recordIdentifier.getTransactionId() + "_" + BUCKET_ID + "_" + recordIdentifier.getRowId();
+                    put.add(columnFamily, recordIdColIdentifier, Bytes.toBytes(recId));
+                }
+                put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(recordUpdateTime));
+                puts.add(put);
+            }catch (Exception e) {
+                LOG.error("failed to mutate record, id: {}, record: {}",
+                        recordIdToBuziId.get(recordIdentifier), bizIdToGeneric.get(recordIdToBuziId.get(recordIdentifier)));
+                throw e;
             }
-            put.addColumn(columnFamily, updateTimeColIdentifier, Bytes.toBytes(recordUpdateTime));
-            puts.add(put);
         }
         LOG.info("mutate write finished, cost: {}ms", System.currentTimeMillis() - writeStart);
         long commitStart = System.currentTimeMillis();

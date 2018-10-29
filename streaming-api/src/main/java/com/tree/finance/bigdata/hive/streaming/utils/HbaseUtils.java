@@ -25,9 +25,9 @@ import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HB
  */
 public class HbaseUtils {
 
-    static Logger LOG = LoggerFactory.getLogger(HbaseUtils.class);
-    static Connection connection;
-    private Integer batchSize;
+    private static Logger LOG = LoggerFactory.getLogger(HbaseUtils.class);
+
+    private static volatile Connection connection;
 
     private Table htable;
 
@@ -36,7 +36,6 @@ public class HbaseUtils {
     private static final ConcurrentHashSet<String> CHECKED_EXIST_TABLE = new ConcurrentHashSet<>();
 
     private HbaseUtils(String tableName, Configuration config) throws IOException {
-        this.batchSize = config.getInt(KEY_HBASE_INSERT_BATCH_SIZE, 500);
         this.htable = connection.getTable(TableName.valueOf(tableName));
     }
 

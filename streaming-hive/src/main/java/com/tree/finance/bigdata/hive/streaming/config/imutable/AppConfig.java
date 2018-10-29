@@ -17,25 +17,27 @@ public abstract class AppConfig {
     @Config("rabbit.mq.port")
     public abstract Integer getRabbitPort();
     @Config("rabbit.mq.task.queue.name")
-    @Default("streaming_warehouse_file_queue")
     public abstract String getRabbitQueueName();
     @Config("rabbit.mq.qos")
     @Default("10")
     public abstract int getRabbitQos();
 
     //app resource config
-    @Config("file.queue.size")
+    @Config("processor.file.queue.size")
     @Default("100")
     public abstract Integer getFileQueueSize();
     @Config("processor.insert.cores")
-    @Default("10")
+    @Default("0")
     public abstract Integer getInsertProcessorCores();
     @Config("processor.update.cores")
-    @Default("5")
+    @Default("0")
     public abstract Integer getUpdateProcessorCores();
     @Config("processor.delay.cores")
     @Default("0")
     public abstract int getDelayProcessorCores();
+    @Config("processor.combine.cores")
+    @Default("0")
+    public abstract int getCombineProcessorCores();
 
     //hive config
     @Config("metastore.uris")
@@ -54,7 +56,7 @@ public abstract class AppConfig {
     @Default("false")
     public abstract boolean deleteAvroOnSuccess();
     @Config("task.greedy.process.batch.limit")
-    @Default("10")
+    @Default("5")
     public abstract int getGreedyProcessBatchLimit();
     @Config("database.task.info.on.success.strategy")
     @Default("update")
@@ -78,7 +80,6 @@ public abstract class AppConfig {
     @Config("task.db.password")
     public abstract String getTaskDbPassword();
     @Config("task.tbl.name")
-    @Default("task_info")
     public abstract String getTaskTleName();
 
     @Config("intermediate.avro.backup.path")
@@ -88,4 +89,12 @@ public abstract class AppConfig {
     @Config("delay.task.queue.size")
     @Default("50")
     public abstract int getDelayTaskQueueSize();
+
+    @Config("delay.task.hours")
+    @Default("1")
+    public abstract Integer getDelayTaskHours();
+
+    @Config("shutdown.socket.port")
+    @Default("57890")
+    public abstract Integer getShutDownSocketPort();
 }

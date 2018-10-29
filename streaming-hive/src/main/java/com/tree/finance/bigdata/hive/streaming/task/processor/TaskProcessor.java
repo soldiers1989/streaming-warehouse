@@ -42,9 +42,8 @@ public abstract class TaskProcessor {
         this.dbTaskStatusListener = new DbTaskStatusListener(factory);
     }
 
-    protected abstract void handleMoreTask(TaskInfo task);
-
     protected List<TaskInfo> getSameTask(TaskInfo taskInfo) {
+        long start = System.currentTimeMillis();
         List<TaskInfo> list = new ArrayList<>();
         StringBuilder sb = new StringBuilder("select id, file_path, attempt from ")
                 .append(config.getTaskTleName()).append(SPACE)
@@ -55,7 +54,8 @@ public abstract class TaskProcessor {
                 .append(" status=").append(SQL_VALUE_QUOTE).append(TaskStatus.NEW).append(SQL_VALUE_QUOTE).append(" and ")
                 .append(" id !=").append(SQL_VALUE_QUOTE).append(taskInfo.getId()).append(SQL_VALUE_QUOTE).append(" and ")
                 .append(" file_path !=").append(SQL_VALUE_QUOTE).append(taskInfo.getFilePath()).append(SQL_VALUE_QUOTE)
-                .append(" order by id asc");
+                .append(" order by id asc limit ")
+                .append(config.getGreedyProcessBatchLimit());
         try (Connection conn = factory.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sb.toString())) {
@@ -64,8 +64,10 @@ public abstract class TaskProcessor {
                         , taskInfo.getPartitions(), taskInfo.getPartitionName(), rs.getString(2), taskInfo.getOp(),
                         rs.getInt(3)));
             }
+            LOG.info("get more task cost: {}", System.currentTimeMillis() - start);
             return list;
         } catch (Exception e) {
+            LOG.info("get more task cost: {}", System.currentTimeMillis() - start);
             LOG.error("failed to get more task, query sql: {}", sb.toString(), e);
             return list;
         }

@@ -12,7 +12,7 @@ writer.base.path : /data/kafka-connect/sink-test/
 system.max.cache.records: 10000000
 
 # Task Dispatch
-task.db.jdbc.url : jdbc:mysql://hadoop3:3306/streaming_hive
+task.db.jdbc.url : jdbc:mysql://hadoop3:3306/streaming_hive_test
 task.db.user : hive2
 task.db.password : hive2stream
 task.storage.table.name : task_info_test

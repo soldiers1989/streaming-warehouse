@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author Zhengsj
@@ -22,7 +24,7 @@ public class RabbitMqUtils {
     private Connection connection;
     private Logger LOG = LoggerFactory.getLogger(RabbitMqUtils.class);
     private static HashMap<String, RabbitMqUtils> map = new HashMap<>();
-    private HashMap<String, QueueingConsumer> queueMap = new HashMap<>();
+    private Map<String, QueueingConsumer> queueMap = new ConcurrentHashMap<>();
 
     public static synchronized RabbitMqUtils getInstance(String host, int port) {
         String key = host + "_" + port;

@@ -5,7 +5,7 @@
     <parent>
         <artifactId>streaming-warehouse</artifactId>
         <groupId>com.tree.finance.bigdata</groupId>
-        <version>1.0</version>
+        <version>2.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -13,7 +13,6 @@
 
     <properties>
         <ver.hive>2.3.3-1</ver.hive>
-        <logback.version>1.2.3</logback.version>
         <ver.mysql>5.1.47</ver.mysql>
     </properties>
 
@@ -84,7 +83,7 @@
         <dependency>
             <groupId>com.tree.finance.bigdata</groupId>
             <artifactId>streaming-tools</artifactId>
-            <version>1.0</version>
+            <version>2.0</version>
         </dependency>
 
     </dependencies>

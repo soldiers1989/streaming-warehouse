@@ -67,8 +67,8 @@ public abstract class Writer<T> {
     protected Path makePath() {
         StringBuilder sb = new StringBuilder(basePath);
         sb.append(DFS_FILE_SEPARATOR)
-                //TODO not differentiate insert update delete
-                .append(ref.getOp())
+                //not differentiate insert update delete
+                .append(Operation.ALL)
                 .append(DFS_FILE_SEPARATOR).append(ref.getDb())
                 .append(DFS_FILE_SEPARATOR).append(ref.getTable())
                 .append(DFS_FILE_SEPARATOR).append(ref.getPartitionName())

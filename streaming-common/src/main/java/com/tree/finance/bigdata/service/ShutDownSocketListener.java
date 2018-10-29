@@ -37,7 +37,7 @@ public class ShutDownSocketListener {
         LOG.info("started ShutDown Socket Listener");
     }
 
-    public void listen() {
+    private void listen() {
         try {
             while (!stop) {
                 try (Socket socket = serverSocket.accept();

@@ -157,17 +157,16 @@ public class UpdateTaskProcessor extends TaskProcessor implements Runnable {
         return false;
     }
 
-    public void process(ConsumedTask consumedTask) {
+    public boolean commit(ConsumedTask consumedTask) {
         try {
-            while (!this.taskQueue.offer(consumedTask, 10, TimeUnit.SECONDS)) {
-                LOG.warn("task queue full");
-            }
+            return this.taskQueue.offer(consumedTask, 5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            //ignore
+            LOG.warn("queue is full: {}", id);
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 
-    @Override
     protected void handleMoreTask(TaskInfo previousTask) {
         List<TaskInfo> moreTasks = getSameTask(previousTask);
         UpdateMutation updateMutation = null;

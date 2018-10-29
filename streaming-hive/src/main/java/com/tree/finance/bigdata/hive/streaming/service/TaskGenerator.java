@@ -55,6 +55,7 @@ public class TaskGenerator implements Service {
             }
         }
 
+        LOG.info("started consumer threads: {}", taskConsumeThreads.size());
         this.countDownLatch = new CountDownLatch(taskConsumeThreads.size());
 
     }

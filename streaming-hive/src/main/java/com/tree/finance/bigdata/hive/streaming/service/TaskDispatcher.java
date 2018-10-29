@@ -4,6 +4,7 @@ import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
+import com.tree.finance.bigdata.hive.streaming.task.processor.CombinedTaskProcessor;
 import com.tree.finance.bigdata.hive.streaming.task.processor.DelayTaskProcessor;
 import com.tree.finance.bigdata.hive.streaming.task.processor.InsertTaskProcessor;
 import com.tree.finance.bigdata.hive.streaming.task.processor.UpdateTaskProcessor;
@@ -31,9 +32,13 @@ public class TaskDispatcher implements Service {
 
     private DelayTaskProcessor[] delayExecutor;
 
+    private CombinedTaskProcessor[] combineExecutor;
+
     private AppConfig config;
 
     private ConnectionFactory factory;
+
+    private int hash = 0;
 
     public TaskDispatcher(AppConfig config) {
         this.config = config;
@@ -42,22 +47,44 @@ public class TaskDispatcher implements Service {
     public void init() {
         this.factory = ConfigHolder.getDbFactory();
 
-        this.insertExecutor = new InsertTaskProcessor[config.getInsertProcessorCores()];
-        for (int i = 0; i < config.getInsertProcessorCores(); i++) {
-            insertExecutor[i] = new InsertTaskProcessor(config, factory, i);
-            insertExecutor[i].init();
+        if (config.getInsertProcessorCores() > 0) {
+            this.insertExecutor = new InsertTaskProcessor[config.getInsertProcessorCores()];
+            for (int i = 0; i < config.getInsertProcessorCores(); i++) {
+                insertExecutor[i] = new InsertTaskProcessor(config, factory, i);
+                insertExecutor[i].init();
+            }
+            LOG.info("started insert processor");
         }
 
-        this.updateExecutor = new UpdateTaskProcessor[config.getUpdateProcessorCores()];
-        for (int i = 0; i < config.getUpdateProcessorCores(); i++) {
-            updateExecutor[i] = new UpdateTaskProcessor(config, factory, i);
-            updateExecutor[i].init();
+        if (config.getUpdateProcessorCores() > 0) {
+            this.updateExecutor = new UpdateTaskProcessor[config.getUpdateProcessorCores()];
+            for (int i = 0; i < config.getUpdateProcessorCores(); i++) {
+                updateExecutor[i] = new UpdateTaskProcessor(config, factory, i);
+                updateExecutor[i].init();
+            }
+            LOG.info("started update processor");
         }
 
-        this.delayExecutor = new DelayTaskProcessor[config.getDelayProcessorCores()];
-        for (int i = 0; i < config.getDelayProcessorCores(); i++) {
-            delayExecutor[i] = new DelayTaskProcessor(i);
-            delayExecutor[i].init();
+        if (config.getDelayProcessorCores() > 0) {
+            this.delayExecutor = new DelayTaskProcessor[config.getDelayProcessorCores()];
+            for (int i = 0; i < config.getDelayProcessorCores(); i++) {
+                delayExecutor[i] = new DelayTaskProcessor(i);
+                delayExecutor[i].init();
+            }
+            LOG.info("started delay processor");
+        }
+
+        if (config.getCombineProcessorCores() > 0) {
+            this.combineExecutor = new CombinedTaskProcessor[config.getCombineProcessorCores()];
+            for (int i = 0; i < config.getCombineProcessorCores(); i++) {
+                combineExecutor[i] = new CombinedTaskProcessor(config, factory, i);
+                combineExecutor[i].init();
+            }
+            LOG.info("started combine processor");
+        }
+
+        if (null == combineExecutor && null == insertExecutor && null == delayExecutor && null == updateExecutor) {
+            throw new RuntimeException("no compute resources configured");
         }
 
         LOG.info("started TaskProcessor ...");
@@ -68,17 +95,32 @@ public class TaskDispatcher implements Service {
             return;
         }
 
-//        Random random = new Random();
-//        int hash = Math.abs(random.nextInt(insertExecutor.length));
+//        int hash = Math.abs(Objects.hash(consumedTask.getTaskInfo().getDb(), consumedTask.getTaskInfo().getTbl(),
+//                consumedTask.getTaskInfo().getPartitionName()));
 
-        int hash = Math.abs(Objects.hash(consumedTask.getTaskInfo().getDb(), consumedTask.getTaskInfo().getTbl(),
-                consumedTask.getTaskInfo().getPartitionName()));
+        if (null != combineExecutor) {
+            hash = (hash + 1 ) % combineExecutor.length;
+            while (!combineExecutor[hash].commit(consumedTask)){
+                //if queue is full try another executor
+                hash = (hash + 1 ) % combineExecutor.length;
+            };
+            MetricReporter.consumedMsg(consumedTask.getTaskInfo().getOp());
+            return;
+        }
 
         if (Operation.CREATE.equals(consumedTask.getTaskInfo().getOp())) {
-            insertExecutor[hash % insertExecutor.length].process(consumedTask);
+            hash = (hash + 1 ) % insertExecutor.length;
+            while (!insertExecutor[hash].commit(consumedTask)){
+                //if queue is full try another executor
+                hash = (hash + 1 ) % insertExecutor.length;
+            };
             MetricReporter.consumedMsg(consumedTask.getTaskInfo().getOp());
         } else if (Operation.UPDATE.equals(consumedTask.getTaskInfo().getOp()) || Operation.DELETE.equals(consumedTask.getTaskInfo().getOp())) {
-            updateExecutor[hash % updateExecutor.length].process(consumedTask);
+            hash = (hash + 1 ) % updateExecutor.length;
+            while (!updateExecutor[hash].commit(consumedTask)){
+                //if queue is full try another executor
+                hash = (hash + 1 ) % insertExecutor.length;
+            }
             MetricReporter.consumedMsg(consumedTask.getTaskInfo().getOp());
         } else {
             LOG.error("unsupported task type: {}", consumedTask.getTaskInfo());
@@ -94,44 +136,57 @@ public class TaskDispatcher implements Service {
                 consumedTask.getTaskInfo().getPartitionName()));
         //handle by scheduler thread
         try {
-            delayExecutor[hash % delayExecutor.length].process(consumedTask);
+            delayExecutor[hash % delayExecutor.length].commit(consumedTask);
         } catch (Exception e) {
             LOG.error("", e);
         }
-
     }
 
     @Override
     public void stop() {
-
-        for (InsertTaskProcessor insertTaskProcessor : insertExecutor) {
-            try {
-                insertTaskProcessor.stop();
-            } catch (Exception e) {
-                LOG.error("error stopping insert ");
+        if (null != combineExecutor) {
+            for (CombinedTaskProcessor combinedTaskProcessor : combineExecutor) {
+                try {
+                    combinedTaskProcessor.stop();
+                }catch (Exception e) {
+                    LOG.error("error stopping combine");
+                }
             }
-            LOG.info("stopped insert TaskProcessor");
         }
 
-        for (UpdateTaskProcessor updateTaskProcessor : updateExecutor) {
-            try {
-                updateTaskProcessor.stop();
-            } catch (Exception e) {
-                LOG.error("error stopping insert ");
+        if (null != insertExecutor) {
+            for (InsertTaskProcessor insertTaskProcessor : insertExecutor) {
+                try {
+                    insertTaskProcessor.stop();
+                } catch (Exception e) {
+                    LOG.error("error stopping insert ");
+                }
+                LOG.info("stopped insert TaskProcessor");
             }
-            LOG.info("stopped update TaskProcessor");
         }
 
-        for (DelayTaskProcessor delayTaskProcessor : delayExecutor) {
-            try {
-                delayTaskProcessor.stop();
-            } catch (Exception e) {
-                LOG.error("error stopping insert ");
+        if (null != updateExecutor) {
+            for (UpdateTaskProcessor updateTaskProcessor : updateExecutor) {
+                try {
+                    updateTaskProcessor.stop();
+                } catch (Exception e) {
+                    LOG.error("error stopping insert ");
+                }
+                LOG.info("stopped update TaskProcessor");
             }
-            LOG.info("stopped delay TaskProcessor");
+        }
+
+        if (null != delayExecutor) {
+            for (DelayTaskProcessor delayTaskProcessor : delayExecutor) {
+                try {
+                    delayTaskProcessor.stop();
+                } catch (Exception e) {
+                    LOG.error("error stopping insert ");
+                }
+                LOG.info("stopped delay TaskProcessor");
+            }
         }
 
         this.factory.close();
-
     }
 }

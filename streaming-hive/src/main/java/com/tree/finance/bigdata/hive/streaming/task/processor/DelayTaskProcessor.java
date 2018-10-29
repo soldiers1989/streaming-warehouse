@@ -7,6 +7,7 @@ import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mysql.MysqlTask;
 import com.tree.finance.bigdata.hive.streaming.task.listener.DbTaskStatusListener;
+import com.tree.finance.bigdata.hive.streaming.utils.CombinedMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.InsertMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.UpdateMutation;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
@@ -72,7 +73,6 @@ public class DelayTaskProcessor {
     }
 
     public void handleDelayTask(MysqlTask task) {
-
         try {
             FileSystem fileSystem = FileSystem.get(new Configuration());
             Path path = new Path(task.getTaskInfo().getFilePath());
@@ -85,7 +85,9 @@ public class DelayTaskProcessor {
             LOG.error("maybe hadoop file system unavailable, skip task", e);
         }
 
-        if (task.getTaskInfo().getOp().equals(Operation.CREATE)) {
+        if (task.getTaskInfo().getOp().equals(Operation.ALL)) {
+            handleCombineTask(task);
+        }else if (task.getTaskInfo().getOp().equals(Operation.CREATE)) {
             handleInsertTask(task);
         } else {
             //handle as insert, and last time handle as update
@@ -96,6 +98,48 @@ public class DelayTaskProcessor {
             }
         }
 
+    }
+
+    private void handleCombineTask(MysqlTask task) {
+        CombinedMutation mutationUtils = new CombinedMutation(task.getTaskInfo().getDb(),
+                task.getTaskInfo().getTbl(), task.getTaskInfo().getPartitionName(),
+                task.getTaskInfo().getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
+        try {
+            long start = System.currentTimeMillis();
+            LOG.info("handle delayed combine task: {}", task.getTaskInfo().getFilePath());
+            try (AvroFileReader reader = new AvroFileReader(new Path(task.getTaskInfo().getFilePath()))) {
+                Schema recordSchema = reader.getSchema();
+                mutationUtils.beginTransaction(recordSchema, ConfigHolder.getHiveConf());
+                while (reader.hasNext()) {
+                    GenericData.Record record = reader.next();
+                    mutationUtils.mutate(record);
+                }
+            }
+            mutationUtils.commitTransaction();
+            dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
+            LOG.info("delay combine task success : {}, cost: {}ms", task.getTaskInfo().getFilePath(),
+                    System.currentTimeMillis() - start);
+        } catch (TransactionException e) {
+            try {
+                if (e.getCause() instanceof LockException) {
+                    LOG.warn("failed to lock for delay combine task, txnId: {}, file: {}", mutationUtils.getTransactionId(),
+                            task.getTaskInfo().getFilePath());
+                } else {
+                    LOG.error("txn exception", e);
+                }
+                mutationUtils.abortTxn();
+            } catch (Exception ex) {
+                LOG.error("error handle transaction exception", ex);
+            }
+        } catch (Throwable t) {
+            LOG.error("file task failed: {}", task.getTaskInfo(), t);
+            try {
+                mutationUtils.abortTxn();
+                dbTaskStatusListener.onTaskError(task.getTaskInfo());
+            } catch (Throwable e) {
+                LOG.error("error abort txn", e);
+            }
+        }
     }
 
     private void handleInsertTask(MysqlTask task) {
@@ -202,14 +246,8 @@ public class DelayTaskProcessor {
         }
     }
 
-    public void process(MysqlTask consumedTask) {
-        try {
-            while (!stop && !this.taskQueue.offer(consumedTask, 10, TimeUnit.SECONDS)) {
-                LOG.warn("task queue full");
-            }
-        } catch (InterruptedException e) {
-            //ignore
-        }
+    public void commit(MysqlTask consumedTask) throws InterruptedException {
+        this.taskQueue.put(consumedTask);
     }
 
     public void stop() {
