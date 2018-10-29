@@ -29,6 +29,18 @@ kafka.global:
 # Connect
 connect.schema.url: http://application1:8081,http://application2:8081,http://application3:8081,http://application4:8081,http://application5:8081
 
+# deploy on application 1
+# subscribe.databases: [ecommerce, loandb, notify, payment]
+
+# deploy on application2
+# subscribe.databases: [acrm_usercenter, antifraud, basisdata, bill]
+
+# deploy on application3
+# subscribe.databases: [collection, credit_audit, customer_service]
+
+# deploy on application4
+# subscribe.databases: [point, rawdata, thirdparty, thirdparty2, tongdun]
+
 #DataBases
 databases:
 # 1

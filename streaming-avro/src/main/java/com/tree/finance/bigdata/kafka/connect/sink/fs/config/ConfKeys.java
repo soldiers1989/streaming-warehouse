@@ -25,6 +25,7 @@ public interface ConfKeys {
     String DB_CORES = "cores";
     String DB_TOIPCS = "topics";
     String DB_KAFKA_CLIENT = "kafka.consumer.group.name";
+    String SUBSCRIBE_DBS = "subscribe.databases";
 
     String KAFKA_CONF_GLOBAL = "kafka.global";
     String CONNECT_SCHEMA_URL_KEY = "connect.schema.url";

@@ -28,6 +28,9 @@ kafka.global :
 # Connect
 connect.schema.url : http://application1:8081,http://application2:8081,http://application3:8081,http://application4:8081,http://application5:8081
 
+# deploy on test machine
+subscribe.databases: [clientrelationship]
+
 #DataBases
 databases:
 

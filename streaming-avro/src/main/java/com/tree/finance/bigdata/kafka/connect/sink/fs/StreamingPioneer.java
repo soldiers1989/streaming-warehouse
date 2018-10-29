@@ -4,11 +4,13 @@ import com.tree.finance.bigdata.kafka.connect.sink.fs.config.PioneerConfig;
 import com.tree.finance.bigdata.kafka.connect.sink.fs.processor.Processor;
 import com.tree.finance.bigdata.service.Service;
 import com.tree.finance.bigdata.service.ShutDownSocketListener;
+import com.tree.finance.bigdata.utils.common.CollectionUtils;
 import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,10 +34,15 @@ public class StreamingPioneer implements Service {
         ShutDownSocketListener shutDonwSocketServer = new ShutDownSocketListener(this, PioneerConfig.getShutDownPort());
         shutDonwSocketServer.init();
 
-        Map dbConfs = PioneerConfig.getDBConfs();
-        dbConfs.keySet().forEach(k -> {
-            dbProcessors.add(new DatabaseProcessor(k.toString()));
-        });
+        List<String> subscribeDbs = PioneerConfig.getSubscribeDbs();
+        if (CollectionUtils.isEmpty(subscribeDbs)) {
+            LOG.error("subscribe no databases");
+            System.exit(1);
+        }
+
+        LOG.info("subscribed databases: {}", Arrays.toString(subscribeDbs.toArray()));
+        subscribeDbs.forEach(db -> dbProcessors.add(new DatabaseProcessor(db)));
+
         dbProcessors.forEach(p -> p.start());
 
         Runtime.getRuntime().addShutdownHook(new Thread(this::stop));

@@ -80,6 +80,10 @@ public class PioneerConfig {
         return toplicList.toArray(new String[toplicList.size()]);
     }
 
+    public static List<String> getSubscribeDbs() {
+        return  (ArrayList<String>) conf.get(SUBSCRIBE_DBS);
+    }
+
     public static String getDefaultParClos() {
         return conf.get(PARTITION_CONFIG).toString();
     }
