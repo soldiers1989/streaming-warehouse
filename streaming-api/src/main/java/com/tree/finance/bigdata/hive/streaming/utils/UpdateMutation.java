@@ -160,18 +160,18 @@ public class UpdateMutation extends Mutation {
     }
 
     @Override
-    public long commitTransaction() throws Exception {
+    public MutateResult commitTransaction() throws Exception {
 
         if (bizIdToGeneric.isEmpty()) {
             super.commitTransaction();
-            return 0l;
+            return result;
         }
 
         sortRecords();
 
         if (recordIdsorted.isEmpty()) {
             super.commitTransaction();
-            return mutateRecords;
+            return result;
         }
 
         long writeStart = System.currentTimeMillis();
@@ -220,6 +220,6 @@ public class UpdateMutation extends Mutation {
         hbaseUtils.batchPut(puts);
         LOG.info("batch put ids success cost: {}", System.currentTimeMillis() - putStart);
 
-        return mutateRecords;
+        return result;
     }
 }

@@ -52,6 +52,7 @@ public class AvroTools {
     }
 
     private static void catAvroFile(Path path) throws Exception{
+        System.out.println("processing file: " + path.toString());
         try (DataFileReader reader = new DataFileReader(new FsInput(path, new Configuration()), new GenericDatumReader());){
             while (reader.hasNext()) {
                 System.out.println(reader.next().toString());

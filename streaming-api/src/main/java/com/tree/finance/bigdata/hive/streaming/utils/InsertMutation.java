@@ -72,7 +72,7 @@ public class InsertMutation extends Mutation {
             //insert imediatly if not check record exist in HBase, avoid heap memory consumption
             String recordId = RECID_PREFIX + (rowId++);
             mutateCoordinator.insert(partitions, record);
-            super.mutateRecords ++;
+            super.result.incInsert();
             //Batch put into HBase after txn commited
             Put put = new Put(Bytes.toBytes(businessId));
             put.addColumn(columnFamily, recordIdColIdentifier, Bytes.toBytes(recordId));
@@ -81,18 +81,18 @@ public class InsertMutation extends Mutation {
         }
     }
 
-    public long commitTransaction() throws Exception {
+    public MutateResult commitTransaction() throws Exception {
 
         if (!txnOpen()) {
-            return mutateRecords;
+            return result;
         }
 
         if (!checkExist) {  //records already write to file before, when we not check record exist in HBase
-            long mutateNum = super.commitTransaction();
+            super.commitTransaction();
             long putStart = System.currentTimeMillis();
             hbaseUtils.batchPut(puts);
             LOG.info("HBase batch put cost: {}ms", System.currentTimeMillis() - putStart);
-            return mutateNum;
+            return result;
         } else {
             if (toInsert.isEmpty()){
                 return super.commitTransaction();
@@ -113,7 +113,7 @@ public class InsertMutation extends Mutation {
                     String recordId = RECID_PREFIX + (rowId++);
                     puts.get(i).addColumn(columnFamily, recordIdColIdentifier, Bytes.toBytes(recordId));
                     mutateCoordinator.insert(partitions, toInsert.get(i));
-                    super.mutateRecords ++;
+                    super.result.incInsert();
                     neededPuts.add(puts.get(i));
                 }
             }
@@ -123,7 +123,7 @@ public class InsertMutation extends Mutation {
             hbaseUtils.batchPut(neededPuts);
             LOG.info("HBase batch put cost: {}ms", System.currentTimeMillis() - putStart);
         }
-        return mutateRecords;
+        return result;
     }
 
     /**

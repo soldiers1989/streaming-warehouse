@@ -7,7 +7,7 @@
     <groupId>com.tree.finance.bigdata</groupId>
     <artifactId>streaming-warehouse</artifactId>
     <packaging>pom</packaging>
-    <version>1.0</version>
+    <version>2.0</version>
     <modules>
         <module>streaming-api</module>
         <module>streaming-avro</module>
@@ -27,7 +27,8 @@
         <ver.fastjson>1.2.47</ver.fastjson>
         <ver.promethues>0.4.0</ver.promethues>
         <ver.mysql>5.1.47</ver.mysql>
-        <streaming-api.ver>1.1.7</streaming-api.ver>
+        <streaming-api.ver>2.0</streaming-api.ver>
+        <logback.version>1.2.3</logback.version>
     </properties>
 
     <dependencies>

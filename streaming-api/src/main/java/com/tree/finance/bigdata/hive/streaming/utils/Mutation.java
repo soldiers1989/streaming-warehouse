@@ -79,9 +79,9 @@ public abstract class Mutation {
 
     protected Long latestTblUpdateTime;
 
-    protected long mutateRecords;
-
     protected Object2ObjectMap<String, RecordIdentifier> bizToRecIdMap =  new Object2ObjectOpenHashMap<>();
+
+    protected MutateResult result;
 
     protected Mutation(String db, String table, String partition, List<String> partitions, String metastoreUris,
                        Configuration hbaseConf) {
@@ -91,15 +91,16 @@ public abstract class Mutation {
         this.partition = partition;
         this.partitions = partitions;
         this.hbaseConf = hbaseConf;
+        this.result = new MutateResult();
     }
 
     public boolean txnOpen() {
         return txnOpen;
     }
 
-    public long commitTransaction() throws Exception {
+    public MutateResult commitTransaction() throws Exception {
         if (!txnOpen()) {
-            return 0;
+            return result;
         }
         closeHbaseUtil();
         closeMutator();
@@ -120,8 +121,7 @@ public abstract class Mutation {
         }
         closeDynamicConfigQuietely();
 
-        return mutateRecords;
-
+        return result;
     }
 
     protected void closeMutator() throws IOException{

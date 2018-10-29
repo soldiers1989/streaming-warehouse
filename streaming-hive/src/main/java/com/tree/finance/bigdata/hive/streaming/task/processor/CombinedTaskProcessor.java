@@ -6,6 +6,7 @@ import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
 import com.tree.finance.bigdata.hive.streaming.utils.CombinedMutation;
+import com.tree.finance.bigdata.hive.streaming.utils.MutateResult;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricReporter;
 import com.tree.finance.bigdata.task.TaskInfo;
 import com.tree.finance.bigdata.task.TaskStatus;
@@ -83,8 +84,11 @@ public class CombinedTaskProcessor extends TaskProcessor{
             return null;
         }
 
-        CombinedMutation mutationUtils = new CombinedMutation(batchTasks.get(0).getDb(),
-                batchTasks.get(0).getTbl(), batchTasks.get(0).getPartitionName(),
+        String db = batchTasks.get(0).getDb();
+        String table = batchTasks.get(0).getTbl();
+
+        CombinedMutation mutationUtils = new CombinedMutation(db,
+                table, batchTasks.get(0).getPartitionName(),
                 batchTasks.get(0).getPartitions(), config.getMetastoreUris(), ConfigFactory.getHbaseConf());
         TaskInfo processing;
         try {
@@ -101,14 +105,15 @@ public class CombinedTaskProcessor extends TaskProcessor{
                 handleTask(mutationUtils, task);
                 LOG.info("additional task success in greedy batch: {}, cost: {}", task.getFilePath(), System.currentTimeMillis() - start);
             }
-            mutationUtils.commitTransaction();
+            MutateResult result  = mutationUtils.commitTransaction();
             try {
                 dbTaskStatusListener.onTaskSuccess(batchTasks);
             } catch (Exception e) {
                 // ignore ack failure. Cause once success, source file is renamed, and will not be retried
                 LOG.warn("ack success failed, will not affect repair accuracy", e);
             }
-            MetricReporter.insertFiles(batchTasks.size());
+            MetricReporter.wroteRecords(result, db, table);
+            MetricReporter.processedFiles(batchTasks.size());
             return batchTasks;
         } catch (TransactionException e) {
             try {
@@ -157,7 +162,7 @@ public class CombinedTaskProcessor extends TaskProcessor{
                     LOG.info("additional task success in batch: {}, cost: {}", sameTask.getFilePath(), System.currentTimeMillis() - start);
                 }
             }
-            mutationUtils.commitTransaction();
+            MutateResult result = mutationUtils.commitTransaction();
             try {
                 mqTaskStatusListener.onTaskSuccess(task);
                 moreTasks.add(task.getTaskInfo());
@@ -166,7 +171,8 @@ public class CombinedTaskProcessor extends TaskProcessor{
                 // ignore ack failure. Cause once success, source file is renamed, and will not be retried
                 LOG.warn("ack success failed, will not affect repair accuracy", e);
             }
-            MetricReporter.insertFiles(moreTasks.size() + 1);
+            MetricReporter.wroteRecords(result, task.getTaskInfo().getDb(), task.getTaskInfo().getTbl());
+            MetricReporter.processedFiles(moreTasks.size());
             return true;
         } catch (TransactionException e) {
             try {

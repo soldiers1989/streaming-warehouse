@@ -49,10 +49,10 @@ public class CombinedMutation extends Mutation{
         if (recordUpdateTime == 0L) {
             LOG.warn("record update time is null or zero, id: {}", businessId);
         }
-        //skip the same record of older version in the same transaction
-        if (bizIdToUpdateTime.containsKey(businessId) && bizIdToUpdateTime.get(businessId) >= recordUpdateTime) {
+        //skip the same record of older version in the same transaction, delete will have the same last_update_time as insert
+        if (bizIdToUpdateTime.containsKey(businessId) && bizIdToUpdateTime.get(businessId) > recordUpdateTime) {
             return;
-        } else { //newer or not exist record
+        } else { //not older or not exist record
             bizIdToUpdateTime.put(businessId, recordUpdateTime);
             bizIdToGeneric.put(businessId, record);
         }
@@ -141,18 +141,18 @@ public class CombinedMutation extends Mutation{
     }
 
     @Override
-    public long commitTransaction() throws Exception {
+    public MutateResult commitTransaction() throws Exception {
         if (bizIdToGeneric.isEmpty()) {
             super.commitTransaction();
-            return 0l;
+            return result;
         }
         filterAndSortRecords();
         if (recordIdsorted.isEmpty()) {
             super.commitTransaction();
-            return mutateRecords;
+            return result;
         }
         doMutate();
-        return mutateRecords;
+        return result;
     }
 
     private void doMutate() throws Exception {
@@ -170,10 +170,13 @@ public class CombinedMutation extends Mutation{
                     } else {
                         mutateCoordinator.update(partitions, record);
                     }
+                    result.incUpdate();
                 } else if (Operation.CREATE.code().equals(record.get(FIELD_OP).toString())) {
                     mutateCoordinator.insert(partitions, record);
+                    result.incInsert();
                 } else if (Operation.DELETE.code().equals(record.get(FIELD_OP).toString())) {  //have filtered non exist delete already, and safe to multi delete
                     mutateCoordinator.delete(partitions, record);
+                    result.incDelete();
                 } else {
                     LOG.error("unsupported operation: {}", record.get(FIELD_OP));
                     throw new RuntimeException("unsupported operation: " + FIELD_OP);
