@@ -95,6 +95,6 @@ public abstract class AppConfig {
     public abstract Integer getDelayTaskHours();
 
     @Config("shutdown.socket.port")
-    @Default("57890")
+    @Default("34185")
     public abstract Integer getShutDownSocketPort();
 }
