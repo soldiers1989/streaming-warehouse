@@ -22,6 +22,7 @@ import org.apache.hive.hcatalog.streaming.mutate.client.lock.LockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileNotFoundException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -147,7 +148,12 @@ public class CombinedTaskProcessor extends TaskProcessor{
         try {
             long start = System.currentTimeMillis();
             LOG.info("single task start: {}", task.getTaskInfo().getFilePath());
-            handleTask(mutationUtils, task.getTaskInfo());
+            boolean success = handleTask(mutationUtils, task.getTaskInfo());
+            if (!success) {
+                mqTaskStatusListener.onTaskSuccess(task);
+                dbTaskStatusListener.onTaskSuccess(task.getTaskInfo());
+                return false;
+            }
 
             LOG.info("single task success: {}, cost: {}ms", task.getTaskInfo().getFilePath(), System.currentTimeMillis() - start);
             long batchStart = System.currentTimeMillis();
@@ -226,6 +232,9 @@ public class CombinedTaskProcessor extends TaskProcessor{
                 mutationUtils.mutate(record);
             }
             LOG.info("insert task in batch cost: {}", System.currentTimeMillis() - insertStart);
+        }catch (FileNotFoundException e) {
+            //ignore
+            return false;
         }
         return true;
     }
