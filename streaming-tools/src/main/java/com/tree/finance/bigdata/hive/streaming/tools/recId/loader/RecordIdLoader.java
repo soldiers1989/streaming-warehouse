@@ -39,7 +39,7 @@ public class RecordIdLoader {
             for (String table : tables) {
                 try {
                     new BulkIdLoader(parser.getDb(), table, parser.getOptionPartitionFiler(),
-                            parser.getCores()).load();
+                            parser.getCores(), parser.getCacheRecords()).load();
                 } catch (Exception e) {
                     System.out.println("ERROR: failed to load table: " + table);
                     e.printStackTrace();
@@ -48,7 +48,7 @@ public class RecordIdLoader {
             iMetaStoreClient.close();
         } else {
             new BulkIdLoader(parser.getDb(), parser.getTable(), parser.getOptionPartitionFiler(),
-                    parser.getCores()).load();
+                    parser.getCores(), parser.getCacheRecords()).load();
         }
 
     }

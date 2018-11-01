@@ -110,7 +110,7 @@ public class DuplicationRemover {
                             UserGroupInformation.createRemoteUser("hbase");
                     ugi.doAs(new PrivilegedExceptionAction<Void>() {
                         public Void run() throws Exception {
-                            new BulkIdLoader(db, table, buildParConditions(duplicatePartitions), cores).load();
+                            new BulkIdLoader(db, table, buildParConditions(duplicatePartitions), cores, null).load();
                             return null;
                         }
                     });

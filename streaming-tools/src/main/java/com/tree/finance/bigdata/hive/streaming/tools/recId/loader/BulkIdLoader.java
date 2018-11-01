@@ -74,15 +74,22 @@ public class BulkIdLoader {
     private static String CONJECT = "_";
     private Logger LOG = LoggerFactory.getLogger(RecordIdLoaderTools.class);
 
-    private final long cacheRecords = 10000000;
+    private long cacheRecords;
 
     private AtomicInteger finishedTasks = new AtomicInteger(0);
 
     private String parFilter;
 
-    public BulkIdLoader(String db, String table, String parFilter, int cores) {
+    public BulkIdLoader(String db, String table, String parFilter, int cores, Long cacheRecords) {
         this.cores = cores;
         this.db = db;
+
+        if (null == cacheRecords) {
+            this.cacheRecords = 1000000l;
+        } else {
+            this.cacheRecords = cacheRecords;
+        }
+
         this.table = table;
         this.columnFamily = Bytes.toBytes(ConfigFactory.getHbaseColumnFamily());
         this.recordIdentifier = Bytes.toBytes(ConfigFactory.getHbaseRecordIdColumnIdentifier());
@@ -234,7 +241,7 @@ public class BulkIdLoader {
 
                     if (writer == null) {
                         FileSystem fs = FileSystem.get(new Configuration());
-                        outPut = new Path("/tmp/streaming-recId/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
+                        outPut = new Path("ha/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
 
                         Configuration hbaseConf = ConfigFactory.getHbaseConf();
                         if (mb > 100 && mb < 500) {
