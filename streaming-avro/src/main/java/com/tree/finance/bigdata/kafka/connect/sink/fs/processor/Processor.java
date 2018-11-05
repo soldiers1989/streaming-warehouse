@@ -130,7 +130,7 @@ public class Processor {
         }
     }
 
-    private WriterRef getAvroWriterRef(SinkRecord sinkRecord) throws Exception {
+    public WriterRef getAvroWriterRef(SinkRecord sinkRecord) throws Exception {
         Struct struct = (Struct) sinkRecord.value();
         if (struct == null) {
             return null;
@@ -156,7 +156,7 @@ public class Processor {
                 partitionVals = new ArrayList<>();
                 Calendar calendar = Calendar.getInstance();
                 partitionVals.add(Integer.toString(calendar.get(Calendar.YEAR)));
-                partitionVals.add(Integer.toString(calendar.get(Calendar.MONTH)));
+                partitionVals.add(Integer.toString(calendar.get(Calendar.MONTH) + 1));
                 partitionVals.add(Integer.toString(calendar.get(Calendar.DAY_OF_MONTH)));
             } else {
                 LOG.warn("no partition value found, table: {}.{}, record: {}", targetDB, tableName, after);

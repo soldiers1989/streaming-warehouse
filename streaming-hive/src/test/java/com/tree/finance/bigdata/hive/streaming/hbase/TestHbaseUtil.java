@@ -7,10 +7,12 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.Pair;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -34,7 +36,9 @@ public class TestHbaseUtil {
 
     @Test
     public void testBatchGet()throws Exception {
-        HbaseUtils hbaseUtils = HbaseUtils.getTableInstance("thirdparty2.shcis_file_upload_log_id", ConfigFactory.getHbaseConf());
+        Configuration conf = new Configuration();
+        conf.set("hbase.zookeeper.quorum", "cloudera2:2181,cloudera3:2181,cloudera1:2181");
+        HbaseUtils hbaseUtils = HbaseUtils.getTableInstance("operator.t_tel_call_sheet_id", conf);
         List<Get> gets = new ArrayList<>();
         gets.add(new Get(Bytes.toBytes("2222222")));
         gets.add(new Get(Bytes.toBytes("22222222333")));
@@ -67,5 +71,23 @@ public class TestHbaseUtil {
         connection.close();
         long end =System.currentTimeMillis();
         System.out.println("cost:  " + (end - start));
+    }
+
+    @Test
+    public void TestRegionLocator() throws Exception{
+        Configuration conf = new Configuration();
+        conf.set("hbase.zookeeper.quorum", "cloudera2:2181,cloudera3:2181,cloudera1:2181");
+        connection = ConnectionFactory.createConnection(conf);
+        Pair<byte[][], byte[][]> startEndKeys = connection.getRegionLocator(TableName.valueOf("point.pc_user_ip_daily_log_id")).getStartEndKeys();
+
+        byte[][] first = startEndKeys.getFirst();
+        byte[][] second = startEndKeys.getSecond();
+        System.out.println("pair key length " + second.length);
+        for (int i=0; i < first.length; i++) {
+            System.out.println(Bytes.toString(first[i]) + " | " + Bytes.toString(second[i]));
+        }
+        connection.close();
+        byte[]  a = {1, 2, 5, 7};
+        System.out.println("index " + Arrays.binarySearch(a, (byte) 3));
     }
 }

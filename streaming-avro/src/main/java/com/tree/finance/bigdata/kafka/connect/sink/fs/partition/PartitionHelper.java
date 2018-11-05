@@ -123,7 +123,7 @@ public class PartitionHelper {
                 Calendar calendar = Calendar.getInstance();
                 calendar.setTimeInMillis(timeStamp * 1000);
                 result.add(Integer.toString(calendar.get(Calendar.YEAR)));
-                result.add(Integer.toString(calendar.get(Calendar.MONTH)));
+                result.add(Integer.toString(calendar.get(Calendar.MONTH) + 1));
                 result.add(Integer.toString(calendar.get(Calendar.DAY_OF_MONTH)));
                 return result;
             case STRING:
@@ -136,8 +136,8 @@ public class PartitionHelper {
                     ts.add(Calendar.HOUR, -8);
                     List<String> partitions = new ArrayList<>();
                     partitions.add(Integer.toString(ts.get(Calendar.YEAR)));
-                    partitions.add(Integer.toString(ts.get(Calendar.MONTH)));
-                    partitions.add(Integer.toString(Calendar.DAY_OF_MONTH));
+                    partitions.add(Integer.toString(ts.get(Calendar.MONTH) + 1));
+                    partitions.add(Integer.toString(ts.get(Calendar.DAY_OF_MONTH)));
                     return partitions;
                 }
             default:

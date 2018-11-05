@@ -59,7 +59,8 @@ public class RecordUtils {
                 String fieldName = f.name().toLowerCase();
                 for (String global : DEFAULT_UPDATE_COL){
                     if (global.equalsIgnoreCase(fieldName)){
-                        tableToUpdateCol.put(table, f.name()) ;
+                        tableToUpdateCol.put(table, f.name());
+                        LOG.info("table: {}, update column is: {}", table, f.name());
                         return f.name();
                     }
                 }
@@ -86,6 +87,7 @@ public class RecordUtils {
                 }
                 if (matchUpdate && matchTime) {
                     tableToUpdateCol.put(table, f.name()) ;
+                    LOG.info("table: {}, update column is: {}", table, f.name());
                     return f.name();
                 }
             }

@@ -69,6 +69,9 @@ databases:
   #common_service:
     #topics:
 
+  operator:
+    topics: [operator.t_tel_base_info]
+
   credit_audit:
     topics: [credit_audit.archive_table,credit_audit.aud_smart_check_result,credit_audit.lp_user_ticket_activity,credit_audit.qs_allocate_plan_record,credit_audit.qs_recharge_message_log,credit_audit.qs_recharge_record,credit_audit.t_audit_cc_task,credit_audit.t_audit_collect,credit_audit.t_audit_data_snapshot,credit_audit.t_audit_derating_detail,credit_audit.t_audit_job,credit_audit.t_audit_loan_order,credit_audit.t_audit_log,credit_audit.t_audit_pick_up_queue,credit_audit.t_audit_recover,credit_audit.t_audit_remark,credit_audit.t_audit_send_log,credit_audit.t_audit_sms_timer,credit_audit.t_audit_tel_answer,credit_audit.t_audit_tel_question,credit_audit.t_audit_trouble_category,credit_audit.t_audit_user_attr,credit_audit.t_audit_user_attr_config,credit_audit.t_audit_user_professional,credit_audit.t_risk_amount_cqd,credit_audit.t_risk_amount_dqd,credit_audit.t_risk_appr_prop,credit_audit.t_risk_bad_behavior_counts,credit_audit.t_risk_derating,credit_audit.t_risk_smart_leader_log,credit_audit.t_risk_sys_user_info,credit_audit.t_sys_audit_config,credit_audit.t_web_detect_item,credit_audit.t_web_detect_item_result]
 
