@@ -1,1 +1,0 @@
-mysql -hhadoop3 -uhive2 -phive2stream -e 'use hive2;delete from write_set where WS_TXNID < (select (NTXN_NEXT-10000) from next_txn_id limit 1);'
