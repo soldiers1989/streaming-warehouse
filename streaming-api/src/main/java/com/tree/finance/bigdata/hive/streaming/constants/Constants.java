@@ -28,4 +28,9 @@ public interface Constants {
     String KEY_HBASE_SYS_CONF_TBL = "key.hbase.sys.conf.tbl";
 
 
+    String KEY_HIVE_LOCK_ZK_QUORUM = "hive.lock.zookeeper.quorum";
+    String KEY_HIVE_LOCK_ZK_PARENT = "hive.lock.zookeeper.parent";
+    String KEY_HIVE_ZK_SESSION_TIMEOUT_MILLIS = "hive.zk.session.timeout.millis";
+
+    String KEY_HIVE_ZK_LOCK_TIMEOUT_SEC = "hive.zk.lock.timeout.sec";
 }

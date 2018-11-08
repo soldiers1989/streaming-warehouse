@@ -1,19 +1,15 @@
 package com.tree.finance.bigdata.hive.streaming.utils;
 
-import com.tree.finance.bigdata.hive.streaming.exeption.DataDelayedException;
 import com.tree.finance.bigdata.hive.streaming.mutation.GenericRowIdUtils;
-import com.tree.finance.bigdata.schema.SchemaConstants;
 import com.tree.finance.bigdata.task.Operation;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.io.RecordIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +56,7 @@ public class CombinedMutation extends Mutation{
 
     /**
      * @throws IOException
-     * @throws DataDelayedException
+     * @throws DistributeLockException
      */
     private void filterAndSortRecords() throws IOException {
         if (this.hbaseUtils == null) {

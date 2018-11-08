@@ -92,7 +92,7 @@ databases:
     topics: [notify.t_push_task,notify.t_push_task_target,notify.t_sms_detail,notify.t_sms_task,notify.t_sms_task_target,notify.t_wechatmp_template_event]
 
     #operator:
-    #topics: [operator.t_tel_base_info,operator.t_tel_bill,operator.t_tel_call_shee,operator.t_tel_familiari,operator.t_tel_net_detai,operator.t_tel_sms_sheet,operator.t_user_tel]
+    #topics: [operator.t_tel_base_info,operator.t_tel_bill,operator.t_tel_call_shee,operator.t_tel_call_sheet,operator.t_tel_familiari,operator.t_tel_familiarity_num,operator.t_tel_net_detai,operator.t_tel_net_detail,operator.t_tel_sms_sheet,operator.t_user_tel]
 
   payment:
     topics: [payment.acct_account,payment.acct_cash_flow,payment.t_allinpay_action_log,payment.t_base_bank,payment.t_card_info,payment.t_chinapnr_action_log,payment.t_error_code,payment.t_lianlian_action_log,payment.t_payment,payment.t_payment_order_all,payment.t_single_pay,payment.t_tp_account,payment.t_tp_intermediate,payment.t_tp_pay_order,payment.t_tp_pay_order_callback,payment.t_tp_pay_order_log,payment.t_tp_pay_order_unknown,payment.t_tp_transaction,payment.t_tp_user,payment.t_umpay_action_log,payment.t_wxpay_action_log,payment.tran_analyze_detail,payment.tran_analyze_sum,payment.tran_batch_detail,payment.tran_batch_summary,payment.tran_card_category,payment.tran_card_category-value,payment.tran_channel_info,payment.tran_route_factor]

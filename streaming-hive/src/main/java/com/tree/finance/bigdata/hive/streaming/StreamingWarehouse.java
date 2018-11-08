@@ -2,6 +2,7 @@ package com.tree.finance.bigdata.hive.streaming;
 
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
+import com.tree.finance.bigdata.hive.streaming.lock.LockManager;
 import com.tree.finance.bigdata.hive.streaming.service.TaskDispatcher;
 import com.tree.finance.bigdata.hive.streaming.service.TaskGenerator;
 import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricServer;
@@ -57,6 +58,7 @@ public class StreamingWarehouse implements Service {
             this.taskDispatcher.stop();
             this.metricServer.stop();
             RabbitMqUtils.getInstance(config.getRabbitHost(), config.getRabbitPort()).close();
+            LockManager.getSingeleton().close();
             LOG.info("program stopped");
         }
     }

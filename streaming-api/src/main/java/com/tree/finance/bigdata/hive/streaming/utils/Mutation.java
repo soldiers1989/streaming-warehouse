@@ -2,6 +2,8 @@ package com.tree.finance.bigdata.hive.streaming.utils;
 
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
 import com.tree.finance.bigdata.hive.streaming.constants.DynamicConfig;
+import com.tree.finance.bigdata.hive.streaming.lock.LockComponent;
+import com.tree.finance.bigdata.hive.streaming.lock.LockManager;
 import com.tree.finance.bigdata.hive.streaming.mutation.AvroMutationFactory;
 import com.tree.finance.bigdata.hive.streaming.mutation.HiveLockFailureListener;
 import com.tree.finance.bigdata.hive.streaming.mutation.inspector.AvroObjectInspector;
@@ -26,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static com.tree.finance.bigdata.hive.streaming.constants.Constants.KEY_HBASE_RECORDID_TBL_SUFFIX;
 
@@ -79,6 +82,8 @@ public abstract class Mutation {
 
     protected Long latestTblUpdateTime;
 
+    protected LockComponent lockComponent;
+
     protected Object2ObjectMap<String, RecordIdentifier> bizToRecIdMap =  new Object2ObjectOpenHashMap<>();
 
     protected MutateResult result;
@@ -92,6 +97,7 @@ public abstract class Mutation {
         this.partitions = partitions;
         this.hbaseConf = hbaseConf;
         this.result = new MutateResult();
+        this.lockComponent = new LockComponent(db, table, partitions);
     }
 
     public boolean txnOpen() {
@@ -120,7 +126,7 @@ public abstract class Mutation {
             }
         }
         closeDynamicConfigQuietely();
-
+        LockManager.getSingeleton().releaseLock(lockComponent);
         return result;
     }
 
@@ -161,6 +167,7 @@ public abstract class Mutation {
         closeHbaseUtilQuietly();
         closeClientQueitely();
         closeDynamicConfigQuietely();
+        LockManager.getSingeleton().releaseLock(lockComponent);
     }
 
     protected void closeDynamicConfigQuietely() {
@@ -195,6 +202,7 @@ public abstract class Mutation {
 
     public void beginTransaction(Schema schema, HiveConf conf) throws Exception {
 
+        LockManager.getSingeleton().getLock(lockComponent, 2, TimeUnit.SECONDS);
         this.checkExist = true;
 
         this.updateCol = RecordUtils.getUpdateCol(db + "." + table, schema);

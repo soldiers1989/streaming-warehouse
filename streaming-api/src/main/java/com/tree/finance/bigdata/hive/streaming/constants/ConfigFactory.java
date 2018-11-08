@@ -85,4 +85,19 @@ public class ConfigFactory {
                 properties.getProperty(Constants.KEY_HBASE_CHECK_UPDATE_TIME_COL) : "check_update_time";
     }
 
+    public static String getHiveLockZkQuorum() {
+        return properties.getProperty(Constants.KEY_HIVE_LOCK_ZK_QUORUM);
+    }
+
+    public static String getHiveLockZkParent() {
+        return properties.getProperty(Constants.KEY_HIVE_LOCK_ZK_PARENT);
+    }
+
+    public static int getHiveZkSessionTimeOut() {
+        return Integer.valueOf(properties.getProperty(Constants.KEY_HIVE_ZK_SESSION_TIMEOUT_MILLIS));
+    }
+
+    public static int getHiveZkLockTimeoutSec(){
+        return Integer.valueOf(properties.getProperty(Constants.KEY_HIVE_ZK_LOCK_TIMEOUT_SEC));
+    }
 }

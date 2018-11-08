@@ -3,6 +3,7 @@ package com.tree.finance.bigdata.hive.streaming.task.processor;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.AppConfig;
 import com.tree.finance.bigdata.hive.streaming.config.imutable.ConfigHolder;
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
+import com.tree.finance.bigdata.hive.streaming.exeption.DistributeLockException;
 import com.tree.finance.bigdata.hive.streaming.reader.AvroFileReader;
 import com.tree.finance.bigdata.hive.streaming.task.consumer.mq.RabbitMqTask;
 import com.tree.finance.bigdata.hive.streaming.utils.CombinedMutation;
@@ -34,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.SPACE;
 import static com.tree.finance.bigdata.hive.streaming.config.Constants.SQL_VALUE_QUOTE;
 
-public class CombinedTaskProcessor extends TaskProcessor{
+public class CombinedTaskProcessor extends TaskProcessor {
     private static Logger LOG = LoggerFactory.getLogger(InsertTaskProcessor.class);
 
     private LinkedBlockingQueue<RabbitMqTask> taskQueue;
@@ -106,7 +107,7 @@ public class CombinedTaskProcessor extends TaskProcessor{
                 handleTask(mutationUtils, task);
                 LOG.info("additional task success in greedy batch: {}, cost: {}", task.getFilePath(), System.currentTimeMillis() - start);
             }
-            MutateResult result  = mutationUtils.commitTransaction();
+            MutateResult result = mutationUtils.commitTransaction();
             try {
                 dbTaskStatusListener.onTaskSuccess(batchTasks);
             } catch (Exception e) {
@@ -116,6 +117,9 @@ public class CombinedTaskProcessor extends TaskProcessor{
             MetricReporter.wroteRecords(result, db, table);
             MetricReporter.processedFiles(batchTasks.size());
             return batchTasks;
+        } catch (DistributeLockException e) {
+            LOG.warn("failed to get zk lock for greedy task");
+            mutationUtils.abortTxn();
         } catch (TransactionException e) {
             try {
                 if (e.getCause() instanceof LockException) {
@@ -180,20 +184,19 @@ public class CombinedTaskProcessor extends TaskProcessor{
             MetricReporter.wroteRecords(result, task.getTaskInfo().getDb(), task.getTaskInfo().getTbl());
             MetricReporter.processedFiles(moreTasks.size());
             return true;
+        } catch (DistributeLockException e) {
+            LOG.warn("failed to get zk lock for mq task: {}", task.getTaskInfo().getFilePath());
+            mutationUtils.abortTxn();
+            mqTaskStatusListener.onTaskError(task);
         } catch (TransactionException e) {
-            try {
-                if (e.getCause() instanceof LockException) {
-                    LOG.warn("failed to lock for mq task, txnId: {}, file: {}", mutationUtils.getTransactionId(),
-                            task.getTaskInfo().getFilePath());
-                } else {
-                    LOG.error("txn exception", e);
-                }
-                mutationUtils.abortTxn();
-            } catch (Exception ex) {
-                LOG.error("error handle transaction exception", ex);
-            } finally {
-                mqTaskStatusListener.onTaskError(task);
+            if (e.getCause() instanceof LockException) {
+                LOG.warn("failed to lock for mq task, txnId: {}, file: {}", mutationUtils.getTransactionId(),
+                        task.getTaskInfo().getFilePath());
+            } else {
+                LOG.error("txn exception", e);
             }
+            mutationUtils.abortTxn();
+            mqTaskStatusListener.onTaskError(task);
         } catch (Throwable t) {
             LOG.error("file task failed: {}", task.getTaskInfo(), t);
             try {
@@ -232,7 +235,7 @@ public class CombinedTaskProcessor extends TaskProcessor{
                 mutationUtils.mutate(record);
             }
             LOG.info("insert task in batch cost: {}", System.currentTimeMillis() - insertStart);
-        }catch (FileNotFoundException e) {
+        } catch (FileNotFoundException e) {
             //ignore
             return false;
         }
