@@ -27,7 +27,7 @@
         <ver.fastjson>1.2.47</ver.fastjson>
         <ver.promethues>0.4.0</ver.promethues>
         <ver.mysql>5.1.47</ver.mysql>
-        <streaming-api.ver>2.0</streaming-api.ver>
+        <streaming-api.ver>2.1</streaming-api.ver>
         <logback.version>1.2.3</logback.version>
     </properties>
 

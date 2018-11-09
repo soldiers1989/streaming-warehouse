@@ -14,7 +14,7 @@ public class LockComponent {
     public LockComponent(String db, String table, List<String> partitions) {
         this.db = db;
         this.table = table;
-        partitions.forEach(p -> partition += p);
+        partitions.forEach(p -> partition = partition + "_" + p);
     }
 
     @Override
@@ -33,6 +33,6 @@ public class LockComponent {
     }
 
     public String getLockPath() {
-        return "/" + db + "/" + table + "." + partition;
+        return "/" + db + "/" + table + partition;
     }
 }

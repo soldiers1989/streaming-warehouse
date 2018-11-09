@@ -44,7 +44,11 @@ public class LockManager {
     }
 
     public void close() {
-        cf.close();
+        try {
+            cf.close();
+        } catch (Exception e) {
+            LOG.error("", e);
+        }
     }
 
     private static class LockManagerHolder {
@@ -56,33 +60,36 @@ public class LockManager {
     }
 
     public boolean getLock(LockComponent lockComponent, int timeOut, TimeUnit unit) throws DistributeLockException {
-        try {
-            if (locks.get() == null) {
-                locks.set(new HashMap<>());
-            }
-            if (locks.get().get(lockComponent) != null) {
-                LOG.warn("lock reentrant, should not hannpen !");
-                return locks.get().get(lockComponent).isAcquiredInThisProcess();
-            }
-            long start = System.currentTimeMillis();
-            InterProcessMutex lock = new InterProcessMutex(cf, lockComponent.getLockPath());
-            if (lock.acquire(timeOut, TimeUnit.SECONDS)) {
-                locks.get().put(lockComponent, lock);
-                LOG.info("zk lock cost: {}ms", System.currentTimeMillis() - start);
-                return true;
-            } else {
-                LOG.info("zk lock timeout cost: {}ms", System.currentTimeMillis() - start);
-                throw new DistributeLockException("lock time out");
-            }
-        }catch (Exception e) {
-            LOG.error("error getting lock", e);
-            throw new DistributeLockException("lock failed");
+        if (locks.get() == null) {
+            locks.set(new HashMap<>());
         }
+        if (locks.get().get(lockComponent) != null) {
+            LOG.warn("lock reentrant, should not hannpen !");
+            return locks.get().get(lockComponent).isAcquiredInThisProcess();
+        }
+        long start = System.currentTimeMillis();
+        InterProcessMutex lock = new InterProcessMutex(cf, lockComponent.getLockPath());
+        boolean aquried = false;
+        try {
+            aquried = lock.acquire(timeOut, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            LOG.error("failed to get lock", e);
+            throw new DistributeLockException("lock time out");
+        }
+
+        if (aquried) {
+            locks.get().put(lockComponent, lock);
+            LOG.info("zk lock cost: {}ms", System.currentTimeMillis() - start);
+            return true;
+        } else {
+            throw new DistributeLockException("lock time out");
+        }
+
     }
 
     public void releaseLock(LockComponent lockComponent) {
         if (locks.get() == null) {
-            return ;
+            return;
         }
         InterProcessMutex lock = locks.get().get(lockComponent);
         if (lock != null) {
@@ -92,8 +99,9 @@ public class LockManager {
     }
 
     private void releaseInternal(InterProcessMutex lock, LockComponent lockComponent) {
+        long start = System.currentTimeMillis();
         try {
-            if (lock.isAcquiredInThisProcess()){
+            if (lock.isAcquiredInThisProcess()) {
                 lock.release();
             }
         } catch (Exception e) {
@@ -102,9 +110,10 @@ public class LockManager {
         //clean zk path
         try {
             cf.delete().forPath(lockComponent.getLockPath());
-        }catch (Exception e) {
+        } catch (Exception e) {
             //ignore
         }
+        LOG.info("release zk lock cost: {}", System.currentTimeMillis() - start);
     }
 
 }

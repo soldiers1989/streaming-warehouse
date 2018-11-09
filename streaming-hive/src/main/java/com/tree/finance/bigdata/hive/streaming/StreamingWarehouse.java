@@ -9,6 +9,7 @@ import com.tree.finance.bigdata.hive.streaming.utils.metric.MetricServer;
 import com.tree.finance.bigdata.service.Service;
 import com.tree.finance.bigdata.service.ShutDownSocketListener;
 import com.tree.finance.bigdata.utils.mq.RabbitMqUtils;
+import org.iq80.leveldb.DBFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +59,7 @@ public class StreamingWarehouse implements Service {
             this.taskDispatcher.stop();
             this.metricServer.stop();
             RabbitMqUtils.getInstance(config.getRabbitHost(), config.getRabbitPort()).close();
-            LockManager.getSingeleton().close();
+            cleanResource();
             LOG.info("program stopped");
         }
     }
@@ -82,6 +83,11 @@ public class StreamingWarehouse implements Service {
             LOG.error("failed to start program");
             System.exit(1);
         }
+    }
+
+    private void cleanResource() {
+        LockManager.getSingeleton().close();
+        ConfigHolder.getDbFactory().close();
     }
 
 }

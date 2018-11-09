@@ -187,6 +187,5 @@ public class TaskDispatcher implements Service {
             }
         }
 
-        this.factory.close();
     }
 }
