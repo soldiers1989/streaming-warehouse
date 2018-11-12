@@ -60,7 +60,10 @@ public class CombinedTaskProcessor extends TaskProcessor {
     public void run() {
         while (!stop || !taskQueue.isEmpty()) {
             try {
-                RabbitMqTask task = taskQueue.take();
+                RabbitMqTask task = taskQueue.poll(10, TimeUnit.SECONDS);
+                if (null == task) {
+                    continue;
+                }
                 if (handleWithMqTask(task)) {    //if successfuly handled current task, try to handle as more as possible
                     while (!CollectionUtils.isEmpty(handleGreedyDbTasks(task))) {
                         LOG.info("handled greedy tasks successfully, going to handle another greedy batch");
@@ -299,7 +302,6 @@ public class CombinedTaskProcessor extends TaskProcessor {
 
     public void stop() {
         this.stop = true;
-        this.thread.interrupt();
         while (taskQueue.size() != 0) {
             try {
                 LOG.info("stopping Combine-Processor-{}, remaining {} tasks...", id, taskQueue.size());
