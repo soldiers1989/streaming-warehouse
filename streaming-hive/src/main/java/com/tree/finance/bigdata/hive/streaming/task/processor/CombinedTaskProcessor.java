@@ -223,21 +223,35 @@ public class CombinedTaskProcessor extends TaskProcessor {
             LOG.info("path not exist: {}", task.getFilePath());
             return false;
         }
-        try (AvroFileReader reader = new AvroFileReader(new Path(task.getFilePath()))) {
+        AvroFileReader reader = null;
+        try {
+            reader = new AvroFileReader(new Path(task.getFilePath()));
             if (!mutationUtils.txnOpen()) {
                 Schema recordSchema = reader.getSchema();
                 //check insert record exist
                 mutationUtils.beginTransaction(recordSchema, ConfigHolder.getHiveConf());
             }
-            long insertStart = System.currentTimeMillis();
             while (reader.hasNext()) {
                 GenericData.Record record = reader.next();
                 mutationUtils.mutate(record);
             }
-            LOG.info("insert task in batch cost: {}", System.currentTimeMillis() - insertStart);
+        } catch (RuntimeException e) {
+            if (null != e.getStackTrace() && e.getCause() instanceof FileNotFoundException) {
+                return false;
+            } else {
+                throw e;
+            }
         } catch (FileNotFoundException e) {
             //ignore
             return false;
+        }finally {
+            if (null != reader) {
+                try {
+                    reader.close();
+                }catch (Exception e) {
+                    //no opt
+                }
+            }
         }
         return true;
     }

@@ -244,13 +244,13 @@ public class BulkIdLoader {
                         outPut = new Path("ha/" + db + "/" + table + "/" + UUID.randomUUID().getLeastSignificantBits());
 
                         Configuration hbaseConf = ConfigFactory.getHbaseConf();
-                        if (mb > 100 && mb < 500) {
+                        /*if (mb > 100 && mb < 500) {
                             hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 3);
                         } else if (mb > 500 && mb < 1000) {
                             hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 5);
                         } else if (mb > 1000) {
                             hbaseConf.setInt(HbaseUtils.PRE_SPLIT_REGIONS, 7);
-                        }
+                        }*/
                         if (!fs.exists(outPut)) {
                             fs.mkdirs(outPut);
                         }

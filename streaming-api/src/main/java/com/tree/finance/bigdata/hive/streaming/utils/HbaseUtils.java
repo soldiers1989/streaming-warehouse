@@ -6,6 +6,7 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.io.compress.Compression;
 import org.apache.hadoop.hbase.regionserver.ConstantSizeRegionSplitPolicy;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.eclipse.jetty.util.ConcurrentHashSet;
@@ -147,6 +148,8 @@ public class HbaseUtils {
         table.setMaxFileSize(maxFileSize);
         table.setRegionSplitPolicyClassName(ConstantSizeRegionSplitPolicy.class.getName());
         HColumnDescriptor family = new HColumnDescriptor(Bytes.toBytes(familyStr));
+        //设置压缩格式为Snappy
+        family.setCompressionType(Compression.Algorithm.SNAPPY);
         table.addFamily(family);
         Admin admin = connection.getAdmin();
         if (!admin.tableExists(TableName.valueOf(tableName))) {
