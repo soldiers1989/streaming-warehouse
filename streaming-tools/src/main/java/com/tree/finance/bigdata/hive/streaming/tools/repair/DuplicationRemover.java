@@ -192,6 +192,7 @@ public class DuplicationRemover {
             statement.execute("set hive.exec.max.dynamic.partitions=99999");
             statement.execute("set hive.exec.max.dynamic.partitions.pernode=99999");
             System.out.println("start insert unique data");
+            LOG.info("start insert unique data, going to execute: {}", sb.toString());
             statement.execute(sb.toString());
             System.out.println("finished insert unique data");
             return true;
@@ -213,6 +214,7 @@ public class DuplicationRemover {
                 String sql = "alter table " + qualifiedTbl + " drop if exists partition " + par.buildDropParSpec();
                 LOG.info("gong to drop partition, execte: {}", sql);
                 statement.execute(sql);
+                System.out.println("droped partition " + par.buildDropParSpec());
             }
         }
     }
