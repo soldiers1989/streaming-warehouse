@@ -1,3 +1,7 @@
+
+# 出于项目和个人隐私考虑，请您删除于我处(github账号：pecanNBU)fork的项目streaming-warehouse,谢谢配合，有任何问题请联系personalc@163.com
+# 出于项目和个人隐私考虑，请您删除于我处(github账号：pecanNBU)fork的项目streaming-warehouse,谢谢配合,有任何问题请联系personalc@163.com
+
 ### Streaming-Warehouse
 #### Introduction
 2nd generation of Data Warehouse, with improved processing latency and data quality.
