@@ -32,3 +32,5 @@ includes
 4. HBase record insight.
 5. create hive transaction table from mysql.
 ```
+
+处于项目隐私保护，本人已经在个人github上删除此项目，烦请你删除
