@@ -1,3 +1,6 @@
+
+#请删除fork至我处的项目streaming—warehouse
+
 package com.tree.finance.bigdata.hive.streaming.lock;
 
 import com.tree.finance.bigdata.hive.streaming.constants.ConfigFactory;
